@@ -1,5 +1,6 @@
 import { Navigation } from "@/components/Navigation";
 import { MessageCircle, Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
@@ -10,8 +11,10 @@ const Index = () => {
           <div className="flex gap-4">
             <Heart className="w-6 h-6 text-white/80 hover:text-white cursor-pointer" />
             <div className="relative">
-              <MessageCircle className="w-6 h-6 text-white/80 hover:text-white cursor-pointer" />
-              <span className="notification-badge">1</span>
+              <Link to="/chat">
+                <MessageCircle className="w-6 h-6 text-white/80 hover:text-white cursor-pointer" />
+                <span className="notification-badge">1</span>
+              </Link>
             </div>
           </div>
         </div>

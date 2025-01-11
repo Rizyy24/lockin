@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Upload from "./pages/Upload";
 import Reels from "./pages/Reels";
+import Chat from "./pages/Chat";
 
 const queryClient = new QueryClient();
 
@@ -19,6 +20,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/upload" element={<Upload />} />
           <Route path="/reels" element={<Reels />} />
+          <Route path="/chat" element={<Chat />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
