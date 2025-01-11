@@ -1,27 +1,39 @@
 import { Navigation } from "@/components/Navigation";
+import { MessageCircle, Heart } from "lucide-react";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background text-foreground p-6 page-transition">
-      <div className="max-w-lg mx-auto space-y-6 pb-20">
-        <h1 className="text-2xl font-semibold mb-8 text-primary">Hey Username...</h1>
-        
-        <div className="message-bubble ml-auto bg-primary/10">
-          <p className="text-sm">Welcome back! Ready to continue your learning journey?</p>
+    <div className="min-h-screen bg-black text-foreground p-6 page-transition">
+      <div className="max-w-lg mx-auto pb-20">
+        <div className="app-header">
+          <h1 className="text-2xl font-bold text-white">LockIn</h1>
+          <div className="flex gap-4">
+            <Heart className="w-6 h-6 text-white/80 hover:text-white cursor-pointer" />
+            <div className="relative">
+              <MessageCircle className="w-6 h-6 text-white/80 hover:text-white cursor-pointer" />
+              <span className="notification-badge">1</span>
+            </div>
+          </div>
         </div>
         
-        <div className="message-bubble">
-          <p className="text-sm font-medium mb-2">Daily Motivation</p>
-          <p className="text-sm text-muted-foreground">
-            "The expert in anything was once a beginner. Keep pushing forward!"
-          </p>
-        </div>
-        
-        <div className="message-bubble">
-          <p className="text-sm font-medium mb-2">Study Reminder</p>
-          <p className="text-sm text-muted-foreground">
-            You've been consistent with your study schedule. Great work!
-          </p>
+        <div className="space-y-4">
+          <div className="message-bubble">
+            <h2 className="text-xl text-white mb-2">Hey Username....</h2>
+          </div>
+          
+          <div className="message-bubble">
+            <h3 className="text-lg text-white/80 mb-2">Chatbot -</h3>
+            <p className="text-white/60">
+              Motivational post, or a wishing post or a reminder (all by the lockin chat bot)
+            </p>
+          </div>
+          
+          <div className="message-bubble">
+            <h3 className="text-lg text-white/80 mb-2">Chatbot -</h3>
+            <p className="text-white/60">
+              Motivational post, or a wishing post or a reminder (all by the lockin chat bot)
+            </p>
+          </div>
         </div>
       </div>
       <Navigation />

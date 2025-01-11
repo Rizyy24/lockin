@@ -41,13 +41,13 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-black text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
 .glass-card {
-  @apply bg-black/10 backdrop-blur-lg border border-white/10 rounded-2xl;
+  @apply bg-black/10 backdrop-blur-lg border border-[#1e40af]/20 rounded-2xl;
 }
 
 .nav-icon {
@@ -59,10 +59,18 @@
 }
 
 .message-bubble {
-  @apply glass-card p-4 max-w-[80%] mb-4;
+  @apply glass-card p-6 w-full mb-4 border border-[#1e40af]/20;
 }
 
 .upload-zone {
   @apply glass-card p-8 text-center border-2 border-dashed border-white/20 
          hover:border-white/40 transition-colors cursor-pointer;
+}
+
+.app-header {
+  @apply flex justify-between items-center mb-8 px-2;
+}
+
+.notification-badge {
+  @apply absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center text-white;
 }
