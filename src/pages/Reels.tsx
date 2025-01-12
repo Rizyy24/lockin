@@ -1,9 +1,16 @@
 import { Navigation } from "@/components/Navigation";
-import { ChevronUp, ChevronDown, Bookmark } from "lucide-react";
+import { ChevronUp, ChevronDown, Bookmark, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Reels = () => {
   return (
     <div className="min-h-screen bg-black text-foreground page-transition">
+      <div className="fixed top-0 left-0 right-0 p-4">
+        <Link to="/" className="text-white/80 hover:text-white">
+          <ArrowLeft className="w-6 h-6" />
+        </Link>
+      </div>
+      
       <div className="h-screen flex flex-col items-center justify-center p-6">
         <div className="glass-card p-8 w-full max-w-lg">
           <p className="text-sm text-white/60 mb-4">Question 1 of 10</p>

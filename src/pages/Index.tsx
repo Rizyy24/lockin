@@ -19,22 +19,25 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="space-y-4">
-          <div className="message-bubble">
-            <h2 className="text-xl text-white mb-2">Hey Username....</h2>
-          </div>
-          
-          <div className="message-bubble">
-            <h3 className="text-lg text-white/80 mb-2">Chatbot -</h3>
+        <div className="space-y-6">
+          <div className="glass-card p-8">
+            <h2 className="text-xl text-white mb-4">Hey Username....</h2>
             <p className="text-white/60">
-              Motivational post, or a wishing post or a reminder (all by the lockin chat bot)
+              Welcome back! Ready to continue your study session?
             </p>
           </div>
           
-          <div className="message-bubble">
-            <h3 className="text-lg text-white/80 mb-2">Chatbot -</h3>
+          <div className="glass-card p-8">
+            <h3 className="text-lg text-white mb-2">Today's Goal</h3>
             <p className="text-white/60">
-              Motivational post, or a wishing post or a reminder (all by the lockin chat bot)
+              Complete 5 practice questions from your uploaded materials
+            </p>
+          </div>
+          
+          <div className="glass-card p-8">
+            <h3 className="text-lg text-white mb-2">Study Tip</h3>
+            <p className="text-white/60">
+              Take short breaks every 25 minutes to maintain focus and productivity
             </p>
           </div>
         </div>

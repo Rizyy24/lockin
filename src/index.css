@@ -6,33 +6,24 @@
   :root {
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
- 
-    --card: 222.2 84% 4.9%;
+    --card: 225 25% 20%;
     --card-foreground: 210 40% 98%;
- 
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
- 
     --primary: 262.1 83.3% 57.8%;
     --primary-foreground: 210 40% 98%;
- 
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
- 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
- 
     --accent: 217.2 32.6% 17.5%;
     --accent-foreground: 210 40% 98%;
- 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
- 
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 224.3 76.3% 48%;
- 
-    --radius: 0.75rem;
+    --radius: 1.5rem;
   }
 }
  
@@ -47,7 +38,7 @@
 }
 
 .glass-card {
-  @apply bg-black/10 backdrop-blur-lg border border-[#1e40af]/20 rounded-2xl;
+  @apply bg-[#1A1F2C]/80 backdrop-blur-lg border border-[#403E43]/20 rounded-[2rem];
 }
 
 .nav-icon {
@@ -59,7 +50,7 @@
 }
 
 .message-bubble {
-  @apply glass-card p-6 w-full mb-4 border border-[#1e40af]/20;
+  @apply glass-card p-6 w-full mb-4;
 }
 
 .upload-zone {
