@@ -17,14 +17,35 @@ const CreateProfile = () => {
   const checkUsername = async (value: string) => {
     if (!value) return;
     setIsChecking(true);
-    const { data } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', value)
-      .single();
-    
-    setIsAvailable(!data);
-    setIsChecking(false);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', value)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error checking username:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to check username availability"
+        });
+        return;
+      }
+      
+      // If no data is returned, the username is available
+      setIsAvailable(!data);
+    } catch (error) {
+      console.error('Error checking username:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to check username availability"
+      });
+    } finally {
+      setIsChecking(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,25 +53,35 @@ const CreateProfile = () => {
     if (!username || !isAvailable) return;
 
     setIsLoading(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ username })
-      .eq('id', (await supabase.auth.getUser()).data.user?.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username })
+        .eq('id', (await supabase.auth.getUser()).data.user?.id);
 
-    if (error) {
+      if (error) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message
+        });
+      } else {
+        toast({
+          title: "Profile created",
+          description: "Welcome to LockIn!"
+        });
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('Error creating profile:', error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message
+        description: "Failed to create profile"
       });
-    } else {
-      toast({
-        title: "Profile created",
-        description: "Welcome to LockIn!"
-      });
-      navigate('/');
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (
