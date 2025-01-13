@@ -56,6 +56,12 @@ const Upload = () => {
     setIsUploading(true);
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       for (const file of files) {
         const fileExt = file.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
@@ -72,6 +78,7 @@ const Upload = () => {
             file_name: file.name,
             file_type: file.type,
             file_path: fileName,
+            user_id: user.id
           });
 
         if (dbError) throw dbError;
@@ -97,11 +104,15 @@ const Upload = () => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // Simulate drop event
-    const dropEvent = {
-      preventDefault: () => {},
-      dataTransfer: { files },
-    } as React.DragEvent<HTMLDivElement>;
+    // Create a proper DragEvent-like object
+    const dropEvent = new DragEvent('drop', {
+      dataTransfer: new DataTransfer()
+    });
+    
+    // Add the files to the DataTransfer object
+    files.forEach(file => {
+      dropEvent.dataTransfer?.items.add(file);
+    });
     
     handleDrop(dropEvent);
   }, [handleDrop]);
