@@ -35,7 +35,7 @@ const Chat = () => {
       if (error) throw error;
 
       return data.map(msg => ({
-        role: msg.is_bot ? 'assistant' : 'user',
+        role: msg.is_bot ? 'assistant' as const : 'user' as const,
         content: msg.content,
         created_at: msg.created_at,
       }));
@@ -70,21 +70,18 @@ const Chat = () => {
 
       if (insertError) throw insertError;
 
-      // Get AI response
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messages, { role: 'user', content }].map(({ role, content }) => ({
+      // Get AI response using Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: {
+          messages: [...messages, { role: 'user' as const, content }].map(({ role, content }) => ({
             role,
             content,
           })),
-        }),
+        },
       });
 
-      if (!response.ok) throw new Error('Failed to get response');
+      if (error) throw error;
 
-      const data = await response.json();
       const assistantMessage = data.choices[0].message.content;
 
       // Save AI response to database
