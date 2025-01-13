@@ -1,5 +1,5 @@
 import { Navigation } from "@/components/Navigation";
-import { ChevronUp, ChevronDown, Bookmark, ArrowLeft } from "lucide-react";
+import { ChevronUp, ChevronDown, Bookmark, ArrowLeft, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,10 @@ const Reels = () => {
         .from('study_reels')
         .select(`
           *,
+          uploads (
+            file_name,
+            file_path
+          ),
           questions (
             id,
             question,
@@ -116,7 +120,6 @@ const Reels = () => {
   }
 
   const currentReel = reels?.[currentReelIndex];
-  const currentQuestion = currentReel?.questions?.[0];
 
   return (
     <div className="min-h-screen bg-black text-foreground page-transition">
@@ -127,26 +130,42 @@ const Reels = () => {
       </div>
       
       <div className="h-screen flex flex-col items-center justify-center p-6">
-        {currentReel && currentQuestion ? (
+        {currentReel ? (
           <div className="glass-card p-8 w-full max-w-lg animate-fade-in">
             <p className="text-sm text-white/60 mb-4">
-              Question {currentReelIndex + 1} of {reels?.length}
+              Reel {currentReelIndex + 1} of {reels?.length}
             </p>
-            <h2 className="text-xl font-medium text-white mb-6">
-              {currentQuestion.question}
-            </h2>
             
-            <div className="space-y-4">
-              {currentQuestion.options && JSON.parse(currentQuestion.options as string).map((option: string, index: number) => (
-                <button
-                  key={index}
-                  onClick={() => handleSubmitAnswer(currentQuestion.id, option)}
-                  className="w-full p-4 glass-card hover:bg-white/5 transition-colors text-left text-white"
-                >
-                  {String.fromCharCode(65 + index)}) {option}
-                </button>
-              ))}
+            <h2 className="text-xl font-medium text-white mb-6">
+              {currentReel.title}
+            </h2>
+
+            <div className="bg-white/5 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2 text-white/80 mb-4">
+                <FileText className="w-5 h-5" />
+                <span>Uploaded Document</span>
+              </div>
+              {currentReel.content}
             </div>
+
+            {currentReel.questions && currentReel.questions.length > 0 && (
+              <div className="space-y-4">
+                {currentReel.questions.map((question, index) => (
+                  <div key={question.id} className="bg-white/5 rounded-lg p-4">
+                    <p className="text-white mb-4">{question.question}</p>
+                    {question.options && JSON.parse(question.options as string).map((option: string, optionIndex: number) => (
+                      <button
+                        key={optionIndex}
+                        onClick={() => handleSubmitAnswer(question.id, option)}
+                        className="w-full p-4 glass-card hover:bg-white/5 transition-colors text-left text-white mb-2"
+                      >
+                        {String.fromCharCode(65 + optionIndex)}) {option}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
             
             <div className="flex justify-between mt-8">
               <button 
@@ -158,7 +177,7 @@ const Reels = () => {
               </button>
               <button 
                 className="p-2 glass-card hover:bg-white/5 transition-colors text-white"
-                onClick={() => handleSaveQuestion(currentQuestion.id)}
+                onClick={() => handleSaveQuestion(currentReel.questions?.[0]?.id || '')}
               >
                 <Bookmark className="w-6 h-6" />
               </button>
