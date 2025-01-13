@@ -104,17 +104,24 @@ const Upload = () => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // Create a proper DragEvent-like object
-    const dropEvent = new DragEvent('drop', {
-      dataTransfer: new DataTransfer()
-    });
+    // Instead of creating a DragEvent, we'll create a synthetic event with the necessary properties
+    const syntheticEvent = {
+      preventDefault: () => {},
+      dataTransfer: {
+        files,
+      },
+      currentTarget: e.currentTarget,
+      target: e.target,
+      bubbles: true,
+      cancelable: true,
+      defaultPrevented: false,
+      eventPhase: 0,
+      isTrusted: true,
+      timeStamp: Date.now(),
+      type: 'drop',
+    } as React.DragEvent<HTMLDivElement>;
     
-    // Add the files to the DataTransfer object
-    files.forEach(file => {
-      dropEvent.dataTransfer?.items.add(file);
-    });
-    
-    handleDrop(dropEvent);
+    handleDrop(syntheticEvent);
   }, [handleDrop]);
 
   return (
