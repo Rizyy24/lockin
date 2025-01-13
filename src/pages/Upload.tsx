@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Upload as UploadIcon, ArrowLeft, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -9,6 +9,7 @@ const Upload = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -19,6 +20,30 @@ const Upload = () => {
     e.preventDefault();
     setIsDragging(false);
   }, []);
+
+  const createStudyReel = async (uploadId: string, fileName: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data: reel, error } = await supabase
+      .from('study_reels')
+      .insert({
+        title: fileName,
+        content: "Content will be processed...",
+        type: "document",
+        user_id: user.id,
+        source_upload_id: uploadId
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating study reel:', error);
+      return null;
+    }
+
+    return reel;
+  };
 
   const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -66,28 +91,40 @@ const Upload = () => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         
-        const { error: uploadError } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('study_materials')
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
-        const { error: dbError } = await supabase
+        const { data: upload, error: dbError } = await supabase
           .from('uploads')
           .insert({
             file_name: file.name,
             file_type: file.type,
             file_path: fileName,
             user_id: user.id
-          });
+          })
+          .select()
+          .single();
 
         if (dbError) throw dbError;
+
+        // Create a study reel from the upload
+        const reel = await createStudyReel(upload.id, file.name);
+        
+        if (!reel) {
+          throw new Error('Failed to create study reel');
+        }
       }
 
       toast({
         title: "Success",
-        description: "Files uploaded successfully",
+        description: "Files uploaded and reels created successfully",
       });
+
+      // Navigate to reels page after successful upload
+      navigate('/reels');
     } catch (error) {
       console.error('Upload error:', error);
       toast({
@@ -98,13 +135,12 @@ const Upload = () => {
     } finally {
       setIsUploading(false);
     }
-  }, [toast]);
+  }, [toast, navigate]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
 
-    // Instead of creating a DragEvent, we'll create a synthetic event with the necessary properties
     const syntheticEvent = {
       preventDefault: () => {},
       dataTransfer: {
@@ -119,7 +155,7 @@ const Upload = () => {
       isTrusted: true,
       timeStamp: Date.now(),
       type: 'drop',
-    } as React.DragEvent<HTMLDivElement>;
+    } as unknown as React.DragEvent<HTMLDivElement>;
     
     handleDrop(syntheticEvent);
   }, [handleDrop]);

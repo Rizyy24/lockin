@@ -100,6 +100,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          source_upload_id: string | null
           source_url: string | null
           title: string
           type: string
@@ -109,6 +110,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          source_upload_id?: string | null
           source_url?: string | null
           title: string
           type: string
@@ -118,12 +120,21 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          source_upload_id?: string | null
           source_url?: string | null
           title?: string
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "study_reels_source_upload_id_fkey"
+            columns: ["source_upload_id"]
+            isOneToOne: false
+            referencedRelation: "uploads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       uploads: {
         Row: {
