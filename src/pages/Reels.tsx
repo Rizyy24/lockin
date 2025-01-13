@@ -53,7 +53,6 @@ const Reels = () => {
   };
 
   const handleSaveQuestion = async (questionId: string) => {
-    // TODO: Implement save functionality
     toast({
       title: "Coming soon",
       description: "This feature will be available soon!",
@@ -62,6 +61,17 @@ const Reels = () => {
 
   const handleSubmitAnswer = async (questionId: string, answer: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to submit answers",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: question } = await supabase
         .from('questions')
         .select('correct_answer')
@@ -74,6 +84,7 @@ const Reels = () => {
         .from('user_answers')
         .insert({
           question_id: questionId,
+          user_id: user.id,
           answer,
           is_correct: isCorrect,
         });

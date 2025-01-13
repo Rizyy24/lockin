@@ -1,62 +1,166 @@
-import { ArrowLeft, Search, Edit2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Navigation } from "@/components/Navigation";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Send } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation } from "@tanstack/react-query";
+
+interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  created_at?: string;
+}
 
 const Chat = () => {
+  const { toast } = useToast();
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const { data: chatHistory, isLoading } = useQuery({
+    queryKey: ['chat-history'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      return data.map(msg => ({
+        role: msg.is_bot ? 'assistant' : 'user',
+        content: msg.content,
+        created_at: msg.created_at,
+      }));
+    },
+  });
+
+  useEffect(() => {
+    if (chatHistory) {
+      setMessages(chatHistory);
+    }
+  }, [chatHistory]);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  const sendMessage = async (content: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Save user message to database
+      const { error: insertError } = await supabase
+        .from('chat_messages')
+        .insert({
+          content,
+          user_id: user.id,
+          is_bot: false,
+        });
+
+      if (insertError) throw insertError;
+
+      // Get AI response
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, { role: 'user', content }].map(({ role, content }) => ({
+            role,
+            content,
+          })),
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to get response');
+
+      const data = await response.json();
+      const assistantMessage = data.choices[0].message.content;
+
+      // Save AI response to database
+      const { error: botInsertError } = await supabase
+        .from('chat_messages')
+        .insert({
+          content: assistantMessage,
+          user_id: user.id,
+          is_bot: true,
+        });
+
+      if (botInsertError) throw botInsertError;
+
+      setMessages(prev => [
+        ...prev,
+        { role: 'user', content },
+        { role: 'assistant', content: assistantMessage },
+      ]);
+    } catch (error) {
+      toast({
+        title: "Error sending message",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+
+    sendMessage(input);
+    setInput("");
+  };
+
   return (
     <div className="min-h-screen bg-black text-foreground">
-      {/* Header */}
-      <div className="flex items-center gap-4 p-4 border-b border-[#1e40af]/20">
-        <Link to="/" className="text-white/80 hover:text-white">
-          <ArrowLeft className="w-6 h-6" />
-        </Link>
-        <h1 className="text-xl font-semibold text-white">Username</h1>
-        <div className="ml-auto">
-          <Edit2 className="w-6 h-6 text-white/80 hover:text-white cursor-pointer" />
+      <div className="container mx-auto max-w-4xl px-4 py-8">
+        <div className="glass-card min-h-[80vh] flex flex-col">
+          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={`mb-4 ${
+                  message.role === 'user' ? 'text-right' : 'text-left'
+                }`}
+              >
+                <div
+                  className={`inline-block p-4 rounded-lg ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground ml-12'
+                      : 'bg-muted text-foreground mr-12'
+                  }`}
+                >
+                  {message.content}
+                </div>
+              </div>
+            ))}
+          </ScrollArea>
+          
+          <form onSubmit={handleSubmit} className="p-4 border-t border-white/10">
+            <div className="flex gap-2">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your message..."
+                className="flex-1"
+              />
+              <Button type="submit" size="icon">
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </form>
         </div>
       </div>
-
-      {/* Search Bar */}
-      <div className="p-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-white/40" />
-          <Input 
-            placeholder="Search" 
-            className="w-full bg-[#1e1e1e] border-none pl-10 text-white placeholder:text-white/40"
-          />
-        </div>
-      </div>
-
-      {/* AI Quote Section */}
-      <div className="p-4 border-b border-[#1e40af]/20">
-        <div className="glass-card p-6">
-          <h2 className="text-xl text-white text-center mb-2">AI generated quote</h2>
-          <p className="text-white/60 text-center">
-            "Success is not final, failure is not fatal: it is the courage to continue that counts."
-          </p>
-        </div>
-      </div>
-
-      {/* Messages/Requests Section */}
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-white/80 font-medium">Messages</h3>
-          <Link to="#" className="text-[#1e40af] hover:text-[#2563eb]">
-            Requests
-          </Link>
-        </div>
-
-        {/* StudyBot Message */}
-        <div className="flex items-center gap-3 p-3 hover:bg-white/5 rounded-lg cursor-pointer">
-          <div className="w-12 h-12 rounded-full bg-[#1e40af] flex items-center justify-center">
-            <span className="text-white text-sm">SB</span>
-          </div>
-          <div>
-            <h4 className="text-white font-medium">StudyBot</h4>
-            <p className="text-white/60 text-sm">Click to start chatting...</p>
-          </div>
-        </div>
-      </div>
+      <Navigation />
     </div>
   );
 };
