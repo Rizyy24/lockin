@@ -15,9 +15,11 @@ export const Navigation = () => {
       <Link to="/reels" className={`nav-icon ${location.pathname === "/reels" ? "text-white" : ""}`}>
         <Video className="w-6 h-6" />
       </Link>
-      <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center">
-        <User className="w-4 h-4 text-white" />
-      </div>
+      <Link to="/profile" className={`nav-icon ${location.pathname === "/profile" ? "text-white" : ""}`}>
+        <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center">
+          <User className="w-4 h-4 text-white" />
+        </div>
+      </Link>
     </nav>
   );
 };
