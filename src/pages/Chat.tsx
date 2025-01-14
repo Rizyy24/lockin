@@ -1,12 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChatMessages } from "@/components/chat/ChatMessages";
+import { ChatInput } from "@/components/chat/ChatInput";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -17,11 +15,10 @@ interface Message {
 const Chat = () => {
   const { toast } = useToast();
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
 
-  const { data: chatHistory, isLoading } = useQuery({
-    queryKey: ['chat-history'],
+  const { data: messages = [], isLoading } = useQuery({
+    queryKey: ['chat-messages'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
@@ -42,24 +39,12 @@ const Chat = () => {
     },
   });
 
-  useEffect(() => {
-    if (chatHistory) {
-      setMessages(chatHistory);
-    }
-  }, [chatHistory]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const sendMessage = async (content: string) => {
-    try {
+  const sendMessageMutation = useMutation({
+    mutationFn: async (content: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Save user message to database
+      // Save user message
       const { error: insertError } = await supabase
         .from('chat_messages')
         .insert({
@@ -70,7 +55,7 @@ const Chat = () => {
 
       if (insertError) throw insertError;
 
-      // Get AI response using Supabase Edge Function
+      // Get AI response
       const { data, error } = await supabase.functions.invoke('chat', {
         body: {
           messages: [...messages, { role: 'user' as const, content }].map(({ role, content }) => ({
@@ -84,7 +69,7 @@ const Chat = () => {
 
       const assistantMessage = data.choices[0].message.content;
 
-      // Save AI response to database
+      // Save AI response
       const { error: botInsertError } = await supabase
         .from('chat_messages')
         .insert({
@@ -95,66 +80,45 @@ const Chat = () => {
 
       if (botInsertError) throw botInsertError;
 
-      setMessages(prev => [
-        ...prev,
-        { role: 'user', content },
-        { role: 'assistant', content: assistantMessage },
-      ]);
-    } catch (error) {
+      return { userMessage: content, assistantMessage };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['chat-messages'] });
+      setInput("");
+    },
+    onError: (error: Error) => {
       toast({
         title: "Error sending message",
         description: error.message,
         variant: "destructive",
       });
-    }
-  };
+    },
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
-
-    sendMessage(input);
-    setInput("");
+    sendMessageMutation.mutate(input);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
+        <div className="text-center">Loading messages...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-foreground">
       <div className="container mx-auto max-w-4xl px-4 py-8">
         <div className="glass-card min-h-[80vh] flex flex-col">
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`mb-4 ${
-                  message.role === 'user' ? 'text-right' : 'text-left'
-                }`}
-              >
-                <div
-                  className={`inline-block p-4 rounded-lg ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground ml-12'
-                      : 'bg-muted text-foreground mr-12'
-                  }`}
-                >
-                  {message.content}
-                </div>
-              </div>
-            ))}
-          </ScrollArea>
-          
-          <form onSubmit={handleSubmit} className="p-4 border-t border-white/10">
-            <div className="flex gap-2">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your message..."
-                className="flex-1"
-              />
-              <Button type="submit" size="icon">
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </form>
+          <ChatMessages messages={messages} />
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            onSubmit={handleSubmit}
+          />
         </div>
       </div>
       <Navigation />

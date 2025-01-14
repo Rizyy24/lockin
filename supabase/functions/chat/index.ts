@@ -25,7 +25,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful study assistant. You help students understand complex topics, answer questions, and provide explanations in a clear and concise manner.',
+            content: 'You are a helpful study assistant. You help students understand complex topics, answer questions, and provide explanations in a clear and concise manner. Keep your responses focused and educational.',
           },
           ...messages,
         ],
@@ -39,6 +39,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (error) {
+    console.error('Error in chat function:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
