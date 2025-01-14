@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, User } from "lucide-react";
 
 interface Profile {
-  username: string;
+  username: string | null;
   avatar_url: string | null;
   bio: string | null;
 }
