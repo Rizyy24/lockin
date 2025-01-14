@@ -1,15 +1,13 @@
 import { Navigation } from "@/components/Navigation";
-import { ChevronUp, ChevronDown, Bookmark, ArrowLeft, FileText } from "lucide-react";
+import { Bookmark, ArrowLeft, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
 
 const Reels = () => {
   const { toast } = useToast();
-  const [currentReelIndex, setCurrentReelIndex] = useState(0);
 
   const { data: reels, isLoading } = useQuery({
     queryKey: ['study-reels'],
@@ -43,18 +41,6 @@ const Reels = () => {
       return data;
     },
   });
-
-  const handlePreviousReel = () => {
-    if (currentReelIndex > 0) {
-      setCurrentReelIndex(prev => prev - 1);
-    }
-  };
-
-  const handleNextReel = () => {
-    if (reels && currentReelIndex < reels.length - 1) {
-      setCurrentReelIndex(prev => prev + 1);
-    }
-  };
 
   const handleSaveQuestion = async (questionId: string) => {
     toast({
@@ -119,8 +105,6 @@ const Reels = () => {
     );
   }
 
-  const currentReel = reels?.[currentReelIndex];
-
   return (
     <div className="min-h-screen bg-black text-foreground page-transition">
       <div className="fixed top-0 left-0 right-0 p-4">
@@ -129,78 +113,54 @@ const Reels = () => {
         </Link>
       </div>
       
-      <div className="h-screen flex flex-col items-center justify-center p-6">
-        {currentReel ? (
-          <div className="glass-card p-8 w-full max-w-lg animate-fade-in">
-            <p className="text-sm text-white/60 mb-4">
-              Reel {currentReelIndex + 1} of {reels?.length}
-            </p>
-            
-            <h2 className="text-xl font-medium text-white mb-6">
-              {currentReel.title}
-            </h2>
+      <div className="container mx-auto max-w-4xl px-4 py-20">
+        <ScrollArea className="h-[calc(100vh-160px)]">
+          <div className="space-y-8">
+            {reels?.map((reel) => (
+              <div key={reel.id} className="glass-card p-8 animate-fade-in">
+                <h2 className="text-xl font-medium text-white mb-6">
+                  {reel.title}
+                </h2>
 
-            <div className="bg-white/5 rounded-lg p-4 mb-6">
-              <div className="flex items-center gap-2 text-white/80 mb-4">
-                <FileText className="w-5 h-5" />
-                <span>Uploaded Document</span>
-              </div>
-              {currentReel.content}
-            </div>
+                <div className="bg-white/5 rounded-lg p-4 mb-6">
+                  <div className="flex items-center gap-2 text-white/80 mb-4">
+                    <FileText className="w-5 h-5" />
+                    <span>Uploaded Document</span>
+                  </div>
+                  {reel.content}
+                </div>
 
-            {currentReel.questions && currentReel.questions.length > 0 && (
-              <div className="space-y-4">
-                {currentReel.questions.map((question, index) => (
-                  <div key={question.id} className="bg-white/5 rounded-lg p-4">
-                    <p className="text-white mb-4">{question.question}</p>
-                    {question.options && JSON.parse(question.options as string).map((option: string, optionIndex: number) => (
-                      <button
-                        key={optionIndex}
-                        onClick={() => handleSubmitAnswer(question.id, option)}
-                        className="w-full p-4 glass-card hover:bg-white/5 transition-colors text-left text-white mb-2"
-                      >
-                        {String.fromCharCode(65 + optionIndex)}) {option}
-                      </button>
+                {reel.questions && reel.questions.length > 0 && (
+                  <div className="space-y-4">
+                    {reel.questions.map((question) => (
+                      <div key={question.id} className="bg-white/5 rounded-lg p-4">
+                        <p className="text-white mb-4">{question.question}</p>
+                        {question.options && JSON.parse(question.options as string).map((option: string, optionIndex: number) => (
+                          <button
+                            key={optionIndex}
+                            onClick={() => handleSubmitAnswer(question.id, option)}
+                            className="w-full p-4 glass-card hover:bg-white/5 transition-colors text-left text-white mb-2"
+                          >
+                            {String.fromCharCode(65 + optionIndex)}) {option}
+                          </button>
+                        ))}
+                      </div>
                     ))}
                   </div>
-                ))}
+                )}
+                
+                <div className="flex justify-end mt-4">
+                  <button 
+                    className="p-2 glass-card hover:bg-white/5 transition-colors text-white"
+                    onClick={() => handleSaveQuestion(reel.questions?.[0]?.id || '')}
+                  >
+                    <Bookmark className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
-            )}
-            
-            <div className="flex justify-between mt-8">
-              <button 
-                className="p-2 glass-card hover:bg-white/5 transition-colors text-white disabled:opacity-50"
-                onClick={handlePreviousReel}
-                disabled={currentReelIndex === 0}
-              >
-                <ChevronUp className="w-6 h-6" />
-              </button>
-              <button 
-                className="p-2 glass-card hover:bg-white/5 transition-colors text-white"
-                onClick={() => handleSaveQuestion(currentReel.questions?.[0]?.id || '')}
-              >
-                <Bookmark className="w-6 h-6" />
-              </button>
-              <button 
-                className="p-2 glass-card hover:bg-white/5 transition-colors text-white disabled:opacity-50"
-                onClick={handleNextReel}
-                disabled={!reels || currentReelIndex === reels.length - 1}
-              >
-                <ChevronDown className="w-6 h-6" />
-              </button>
-            </div>
+            ))}
           </div>
-        ) : (
-          <div className="glass-card p-8 text-center">
-            <p className="text-white/60">No study reels available yet.</p>
-            <Link 
-              to="/upload" 
-              className="mt-4 inline-block text-primary hover:text-primary/80 transition-colors"
-            >
-              Upload study material to create reels
-            </Link>
-          </div>
-        )}
+        </ScrollArea>
       </div>
       <Navigation />
     </div>

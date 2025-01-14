@@ -1,15 +1,71 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
-import { Upload as UploadIcon, ArrowLeft, Loader2 } from "lucide-react";
+import { Upload as UploadIcon, ArrowLeft, Loader2, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 const Upload = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: uploads, isLoading } = useQuery({
+    queryKey: ['uploads'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('uploads')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const deleteUpload = useMutation({
+    mutationFn: async (uploadId: string) => {
+      const upload = uploads?.find(u => u.id === uploadId);
+      if (!upload) return;
+
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('study_materials')
+        .remove([upload.file_path]);
+
+      if (storageError) throw storageError;
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('uploads')
+        .delete()
+        .eq('id', uploadId);
+
+      if (dbError) throw dbError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['uploads'] });
+      toast({
+        title: "Success",
+        description: "File deleted successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error deleting file",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -208,6 +264,30 @@ const Upload = () => {
             </>
           )}
         </div>
+
+        {uploads && uploads.length > 0 && (
+          <div className="glass-card p-8">
+            <h2 className="text-lg font-semibold text-white mb-4">Uploaded Documents</h2>
+            <ScrollArea className="h-[300px]">
+              <div className="space-y-4">
+                {uploads.map((upload) => (
+                  <div key={upload.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <UploadIcon className="w-5 h-5 text-white/60" />
+                      <span className="text-sm text-white">{upload.file_name}</span>
+                    </div>
+                    <button
+                      onClick={() => deleteUpload.mutate(upload.id)}
+                      className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
       </div>
       <Navigation />
     </div>
