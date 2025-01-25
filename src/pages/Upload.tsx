@@ -46,28 +46,28 @@ const Upload = () => {
       const upload = uploads?.find(u => u.id === uploadId);
       if (!upload) return;
 
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('study_materials')
-        .remove([upload.file_path]);
-
-      if (storageError) throw storageError;
-
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from('uploads')
-        .delete()
-        .eq('id', uploadId);
-
-      if (dbError) throw dbError;
-
-      // Delete associated study reel
+      // First, delete associated study reels
       const { error: reelError } = await supabase
         .from('study_reels')
         .delete()
         .eq('source_upload_id', uploadId);
 
       if (reelError) throw reelError;
+
+      // Then delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('study_materials')
+        .remove([upload.file_path]);
+
+      if (storageError) throw storageError;
+
+      // Finally delete from database
+      const { error: dbError } = await supabase
+        .from('uploads')
+        .delete()
+        .eq('id', uploadId);
+
+      if (dbError) throw dbError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['uploads'] });
@@ -77,9 +77,10 @@ const Upload = () => {
       });
     },
     onError: (error) => {
+      console.error('Delete error:', error);
       toast({
         title: "Error deleting file",
-        description: error.message,
+        description: "Failed to delete file. Please try again.",
         variant: "destructive",
       });
     },
