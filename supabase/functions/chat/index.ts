@@ -37,42 +37,66 @@ serve(async (req) => {
 
     console.log('Chat history fetched:', chatHistory);
 
-    // Format messages for OpenAI
+    // Format messages for Gemini
+    const formattedHistory = (chatHistory || []).map(msg => ({
+      role: msg.is_bot ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }));
+
+    // Add current message
     const messages = [
       {
-        role: 'system',
-        content: 'You are StudyBot, a helpful AI study assistant. Help users understand their study materials and answer their questions clearly and concisely. Keep your responses focused on educational content and learning.',
-      },
-      ...(chatHistory || []).map((msg) => ({
-        role: msg.is_bot ? 'assistant' : 'user',
-        content: msg.content,
-      })),
-      { role: 'user', content: message }
+        role: 'user',
+        parts: [{ text: message }]
+      }
     ];
 
-    console.log('Sending messages to OpenAI:', messages);
+    if (formattedHistory.length > 0) {
+      messages.unshift(...formattedHistory);
+    }
 
-    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    console.log('Sending messages to Gemini:', messages);
+
+    const geminiResponse = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
         'Content-Type': 'application/json',
+        'x-goog-api-key': Deno.env.get('GEMINI_API_KEY') || '',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages,
-        temperature: 0.7,
-        max_tokens: 500,
+        contents: messages,
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 1024,
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          }
+        ]
       }),
     });
 
-    if (!openAIResponse.ok) {
-      const errorData = await openAIResponse.json();
-      console.error('OpenAI API error response:', errorData);
+    if (!geminiResponse.ok) {
+      const errorData = await geminiResponse.json();
+      console.error('Gemini API error response:', errorData);
       
-      if (openAIResponse.status === 429 || 
-          errorData.error?.type === 'insufficient_quota' || 
-          errorData.error?.code === 'insufficient_quota') {
+      if (geminiResponse.status === 429) {
         return new Response(
           JSON.stringify({ 
             error: 'AI service is temporarily unavailable due to high demand. Please try again later.' 
@@ -84,18 +108,18 @@ serve(async (req) => {
         );
       }
       
-      throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
+      throw new Error(`Gemini API error: ${JSON.stringify(errorData)}`);
     }
 
-    const data = await openAIResponse.json();
-    console.log('OpenAI response:', data);
+    const data = await geminiResponse.json();
+    console.log('Gemini response:', data);
 
-    if (!data.choices?.[0]?.message?.content) {
-      console.error('Unexpected OpenAI response format:', data);
-      throw new Error('Invalid response format from OpenAI');
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      console.error('Unexpected Gemini response format:', data);
+      throw new Error('Invalid response format from Gemini');
     }
 
-    const response = data.choices[0].message.content;
+    const response = data.candidates[0].content.parts[0].text;
     console.log('Final response:', response);
 
     return new Response(
