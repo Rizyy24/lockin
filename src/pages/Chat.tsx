@@ -8,7 +8,7 @@ import { ArrowLeft, Pencil, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
-const ChatLanding = () => {
+const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
   return (
     <div className="flex flex-col h-full bg-black text-white">
       {/* Header */}
@@ -54,7 +54,10 @@ const ChatLanding = () => {
         </div>
 
         {/* StudyBot Button */}
-        <button className="flex items-center gap-4 w-full p-4 hover:bg-zinc-900/50 transition-colors">
+        <button 
+          onClick={onStartChat}
+          className="flex items-center gap-4 w-full p-4 hover:bg-zinc-900/50 transition-colors"
+        >
           <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
             SB
           </div>
@@ -84,6 +87,19 @@ const ChatInterface = () => {
 
   return (
     <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
+        <div className="flex items-center gap-2">
+          <Link to="/chat">
+            <ArrowLeft className="w-6 h-6" />
+          </Link>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
+              SB
+            </div>
+            <h1 className="text-xl font-semibold">StudyBot</h1>
+          </div>
+        </div>
+      </div>
       <ChatMessages messages={messages} isLoading={isLoading} />
       <ChatInput
         input={input}
@@ -102,7 +118,7 @@ const Chat = () => {
     return <ChatInterface />;
   }
 
-  return <ChatLanding />;
+  return <ChatLanding onStartChat={() => setIsChattingStarted(true)} />;
 };
 
 export default Chat;

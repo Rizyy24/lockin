@@ -24,6 +24,18 @@ export const useChat = (userId: string) => {
 
   const { mutate: sendMessage, isPending: isSending } = useMutation({
     mutationFn: async (message: string) => {
+      // Save user message first
+      const { error: messageError } = await supabase
+        .from("chat_messages")
+        .insert({
+          content: message,
+          user_id: userId,
+          is_bot: false,
+        });
+
+      if (messageError) throw messageError;
+
+      // Get AI response
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
@@ -33,19 +45,33 @@ export const useChat = (userId: string) => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to send message");
+        throw new Error("Failed to get AI response");
       }
 
-      return response.json();
+      const { response: aiResponse } = await response.json();
+
+      // Save AI response
+      const { error: aiMessageError } = await supabase
+        .from("chat_messages")
+        .insert({
+          content: aiResponse,
+          user_id: userId,
+          is_bot: true,
+        });
+
+      if (aiMessageError) throw aiMessageError;
+
+      return aiResponse;
     },
     onSuccess: () => {
       setInput("");
       queryClient.invalidateQueries({ queryKey: ["chat-messages", userId] });
     },
     onError: (error) => {
+      console.error("Chat error:", error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to send message. Please try again.",
         variant: "destructive",
       });
     },
