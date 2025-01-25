@@ -40,7 +40,13 @@ export const useChat = (userId: string) => {
         body: { message, userId }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a quota exceeded error (status 429)
+        if (error.status === 429) {
+          throw new Error("AI service is temporarily unavailable due to high demand. Please try again later.");
+        }
+        throw error;
+      }
 
       // Save AI response
       const { error: aiMessageError } = await supabase
@@ -63,7 +69,7 @@ export const useChat = (userId: string) => {
       console.error("Chat error:", error);
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: error.message || "Failed to send message. Please try again.",
         variant: "destructive",
       });
     },
