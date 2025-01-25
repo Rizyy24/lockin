@@ -22,7 +22,7 @@ export const useChat = (userId: string) => {
     },
   });
 
-  const { mutate: sendMessage, isLoading: isSending } = useMutation({
+  const { mutate: sendMessage, isPending: isSending } = useMutation({
     mutationFn: async (message: string) => {
       const response = await fetch("/api/chat", {
         method: "POST",

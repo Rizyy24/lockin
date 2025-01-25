@@ -3,7 +3,7 @@ import { ChatMessages } from "@/components/chat/ChatMessages";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { useChat } from "@/hooks/use-chat";
 
-export const Chat = () => {
+const Chat = () => {
   const user = useUser();
   const { messages, input, setInput, handleSubmit, isLoading } = useChat(
     user?.id || ""
@@ -29,3 +29,5 @@ export const Chat = () => {
     </div>
   );
 };
+
+export default Chat;
