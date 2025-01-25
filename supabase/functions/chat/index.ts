@@ -70,13 +70,12 @@ serve(async (req) => {
       const errorData = await openAIResponse.json();
       console.error('OpenAI API error response:', errorData);
       
-      // Check specifically for quota errors
-      if (errorData.error?.type === 'insufficient_quota' || 
-          errorData.error?.code === 'insufficient_quota' ||
-          openAIResponse.status === 429) {
+      if (openAIResponse.status === 429 || 
+          errorData.error?.type === 'insufficient_quota' || 
+          errorData.error?.code === 'insufficient_quota') {
         return new Response(
           JSON.stringify({ 
-            error: 'OpenAI API quota exceeded. Please try again later or contact support.' 
+            error: 'AI service is temporarily unavailable due to high demand. Please try again later.' 
           }),
           {
             status: 429,
@@ -108,10 +107,12 @@ serve(async (req) => {
   } catch (error) {
     console.error('Error in chat function:', error);
     
-    // If it's already a 429 response, pass it through
-    if (error.message?.includes('quota exceeded')) {
+    // Handle quota errors consistently
+    if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ 
+          error: 'AI service is temporarily unavailable due to high demand. Please try again later.' 
+        }),
         {
           status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
