@@ -1,22 +1,27 @@
+import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {
-  role: 'user' | 'assistant';
   content: string;
+  isBot: boolean;
 }
 
-export const ChatMessage = ({ role, content }: ChatMessageProps) => {
+export const ChatMessage = ({ content, isBot }: ChatMessageProps) => {
   return (
-    <div className={cn("mb-4", role === 'user' ? 'text-right' : 'text-left')}>
-      <div
-        className={cn(
-          "inline-block p-4 rounded-lg",
-          role === 'user'
-            ? 'bg-primary text-primary-foreground ml-12'
-            : 'bg-muted text-foreground mr-12'
-        )}
-      >
-        {content}
+    <div
+      className={cn(
+        "flex gap-3 p-4",
+        isBot ? "bg-white/5" : "bg-transparent"
+      )}
+    >
+      <Avatar className="h-8 w-8">
+        <div className={cn(
+          "h-full w-full rounded-full",
+          isBot ? "bg-primary" : "bg-secondary"
+        )} />
+      </Avatar>
+      <div className="flex-1">
+        <p className="text-sm text-white leading-relaxed">{content}</p>
       </div>
     </div>
   );

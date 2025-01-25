@@ -1,30 +1,45 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChatMessage } from "./ChatMessage";
 import { useEffect, useRef } from "react";
+import { ChatMessage } from "./ChatMessage";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Message {
-  role: 'user' | 'assistant';
+  id: string;
   content: string;
+  is_bot: boolean;
 }
 
 interface ChatMessagesProps {
   messages: Message[];
+  isLoading?: boolean;
 }
 
-export const ChatMessages = ({ messages }: ChatMessagesProps) => {
+export const ChatMessages = ({ messages, isLoading }: ChatMessagesProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
 
   return (
-    <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-      {messages.map((message, index) => (
-        <ChatMessage key={index} role={message.role} content={message.content} />
-      ))}
+    <ScrollArea className="flex-1 p-4">
+      <div className="space-y-4">
+        {messages.map((message) => (
+          <ChatMessage
+            key={message.id}
+            content={message.content}
+            isBot={message.is_bot}
+          />
+        ))}
+        {isLoading && (
+          <ChatMessage
+            content="Thinking..."
+            isBot={true}
+          />
+        )}
+        <div ref={scrollRef} />
+      </div>
     </ScrollArea>
   );
 };
