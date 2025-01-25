@@ -35,33 +35,25 @@ export const useChat = (userId: string) => {
 
       if (messageError) throw messageError;
 
-      // Get AI response
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message, userId }),
+      // Get AI response using Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('chat', {
+        body: { message, userId }
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to get AI response");
-      }
-
-      const { response: aiResponse } = await response.json();
+      if (error) throw error;
 
       // Save AI response
       const { error: aiMessageError } = await supabase
         .from("chat_messages")
         .insert({
-          content: aiResponse,
+          content: data.response,
           user_id: userId,
           is_bot: true,
         });
 
       if (aiMessageError) throw aiMessageError;
 
-      return aiResponse;
+      return data.response;
     },
     onSuccess: () => {
       setInput("");
