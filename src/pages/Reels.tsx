@@ -1,5 +1,5 @@
 import { Navigation } from "@/components/Navigation";
-import { Bookmark, ArrowLeft, FileText, Share2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Share2, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,13 +45,6 @@ const Reels = () => {
       return data;
     },
   });
-
-  const handleSaveQuestion = async (questionId: string) => {
-    toast({
-      title: "Coming soon",
-      description: "This feature will be available soon!",
-    });
-  };
 
   const handleShare = async (reelId: string) => {
     try {
@@ -132,78 +125,64 @@ const Reels = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-foreground page-transition">
+    <div className="min-h-screen bg-black text-foreground">
       <div className="fixed top-0 left-0 right-0 p-4 z-50 bg-black/80 backdrop-blur-sm">
         <Link to="/" className="text-white/80 hover:text-white">
           <ArrowLeft className="w-6 h-6" />
         </Link>
       </div>
       
-      <div className="container mx-auto max-w-4xl px-4 py-20">
+      <div className="container mx-auto max-w-md px-4 py-20">
         <ScrollArea className="h-[calc(100vh-160px)]">
           <div className="space-y-8">
             {reels?.map((reel) => (
-              <div key={reel.id} className="glass-card p-8 animate-fade-in">
-                <h2 className="text-xl font-medium text-white mb-6">
-                  {reel.title}
-                </h2>
-
-                <div className="bg-white/5 rounded-lg p-4 mb-6">
-                  <div className="flex items-center gap-2 text-white/80 mb-4">
-                    <FileText className="w-5 h-5" />
-                    <span>Study Material</span>
-                  </div>
-                  <p className="text-white/80 line-clamp-3">{reel.content}</p>
-                </div>
-
+              <div key={reel.id} className="animate-fade-in">
                 {reel.questions && reel.questions.length > 0 && (
                   <div className="space-y-6">
                     {reel.questions.map((question) => (
-                      <div key={question.id} className="bg-white/5 rounded-lg p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <p className="text-white text-lg flex-1">{question.question}</p>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleAnswer(question.id)}
-                              className="text-white/60 hover:text-white"
-                            >
-                              {revealedAnswers[question.id] ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleShare(reel.id)}
-                              className="text-white/60 hover:text-white"
-                            >
-                              <Share2 className="w-5 h-5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleSaveQuestion(question.id)}
-                              className="text-white/60 hover:text-white"
-                            >
-                              <Bookmark className="w-5 h-5" />
-                            </Button>
-                          </div>
+                      <div key={question.id} className="glass-card p-6 min-h-[70vh] flex flex-col">
+                        <div className="flex-1">
+                          <p className="text-white text-xl mb-8">{question.question}</p>
+                          
+                          {!revealedAnswers[question.id] && question.options && Array.isArray(question.options) && (
+                            <div className="grid gap-3">
+                              {question.options.map((option: string, optionIndex: number) => (
+                                <button
+                                  key={optionIndex}
+                                  onClick={() => handleSubmitAnswer(question.id, option)}
+                                  className="w-full p-4 text-left text-white bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                                >
+                                  {option}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {revealedAnswers[question.id] && (
+                            <div className="text-white bg-white/5 p-4 rounded-lg">
+                              <p className="text-lg font-medium mb-2">Answer:</p>
+                              <p>{question.correct_answer}</p>
+                            </div>
+                          )}
                         </div>
-                        
-                        <div className="grid gap-3">
-                          {question.options && Array.isArray(question.options) && question.options.map((option: string, optionIndex: number) => (
-                            <button
-                              key={optionIndex}
-                              onClick={() => handleSubmitAnswer(question.id, option)}
-                              className={`w-full p-4 glass-card hover:bg-white/5 transition-colors text-left text-white ${
-                                revealedAnswers[question.id] && option === question.correct_answer
-                                  ? "border-2 border-green-500"
-                                  : ""
-                              }`}
-                            >
-                              {String.fromCharCode(65 + optionIndex)}) {option}
-                            </button>
-                          ))}
+
+                        <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/10">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => toggleAnswer(question.id)}
+                            className="text-white/60 hover:text-white"
+                          >
+                            {revealedAnswers[question.id] ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleShare(reel.id)}
+                            className="text-white/60 hover:text-white"
+                          >
+                            <Share2 className="w-5 h-5" />
+                          </Button>
                         </div>
                       </div>
                     ))}
