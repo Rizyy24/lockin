@@ -22,17 +22,24 @@ serve(async (req) => {
     // Truncate content if it's too long (Gemini has a token limit)
     const truncatedContent = content.slice(0, 30000)
 
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
+    if (!geminiApiKey) {
+      console.error('GEMINI_API_KEY not found in environment variables')
+      throw new Error('Gemini API key not configured')
+    }
+
+    console.log('Making request to Gemini API...')
     // Call Gemini API to generate questions
     const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('GEMINI_API_KEY')}`,
+        'Authorization': `Bearer ${geminiApiKey}`,
       },
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are a study assistant. Generate 5 multiple choice questions based on this content. Your response must be a valid JSON array. Each object in the array must have exactly these fields: "question" (string), "options" (array of 4 strings), and "correct_answer" (string matching one of the options). Here's the content to generate questions from: ${truncatedContent}`
+            text: `Generate 5 multiple choice questions based on this content. Return ONLY a JSON array where each object has these fields: "question" (string), "options" (array of 4 strings), and "correct_answer" (string matching one of the options). Content: ${truncatedContent}`
           }]
         }],
         generationConfig: {
@@ -63,8 +70,9 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      console.error('Gemini API error:', await response.text())
-      throw new Error('Failed to get response from Gemini API')
+      const errorText = await response.text()
+      console.error('Gemini API error response:', errorText)
+      throw new Error(`Gemini API returned status ${response.status}: ${errorText}`)
     }
 
     const data = await response.json()
@@ -85,6 +93,7 @@ serve(async (req) => {
       const jsonEnd = responseText.lastIndexOf(']') + 1
       
       if (jsonStart === -1 || jsonEnd === 0) {
+        console.error('No JSON array found in response text:', responseText)
         throw new Error('No JSON array found in response')
       }
 
