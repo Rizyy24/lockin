@@ -8,7 +8,7 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
@@ -125,6 +125,7 @@ serve(async (req) => {
     const data = await geminiResponse.json();
     console.log('Gemini response:', data);
 
+    // Improved response validation
     if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
       console.error('Unexpected Gemini response format:', data);
       throw new Error('Invalid response format from Gemini');
@@ -132,6 +133,11 @@ serve(async (req) => {
 
     const response = data.candidates[0].content.parts[0].text;
     console.log('Final response:', response);
+
+    // Validate response is a string
+    if (typeof response !== 'string') {
+      throw new Error('Invalid response type from Gemini');
+    }
 
     return new Response(
       JSON.stringify({ response }),
