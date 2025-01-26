@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text()
       console.error('Gemini API error response:', errorText)
-      throw new Error(`Gemini API returned status ${response.status}: ${errorText}`)
+      throw new Error(`Failed to get response from Gemini API: ${errorText}`)
     }
 
     const data = await response.json()
@@ -139,7 +140,7 @@ Deno.serve(async (req) => {
       })
     } catch (error) {
       console.error('Error processing Gemini response:', error)
-      throw new Error('Invalid response from Gemini API')
+      throw new Error(`Error processing Gemini response: ${error.message}`)
     }
   } catch (error) {
     console.error('Error:', error)
