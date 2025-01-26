@@ -15,6 +15,13 @@ serve(async (req) => {
     const { content, title, uploadId } = await req.json()
     console.log('Processing document:', { title, contentLength: content?.length })
 
+    if (!content) {
+      throw new Error('No content provided')
+    }
+
+    // Truncate content if it's too long (Gemini has a token limit)
+    const truncatedContent = content.slice(0, 30000)
+
     // Call Gemini API to generate questions
     const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
       method: 'POST',
@@ -25,7 +32,7 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are a helpful study assistant. Generate 5 multiple choice questions based on this content. Format your response as a JSON array of objects, where each object has these exact fields: "question" (string), "options" (array of 4 strings), and "correct_answer" (string matching one of the options). Content: ${content}`
+            text: `You are a study assistant. Generate 5 multiple choice questions based on this content. Your response must be a valid JSON array. Each object in the array must have exactly these fields: "question" (string), "options" (array of 4 strings), and "correct_answer" (string matching one of the options). Here's the content to generate questions from: ${truncatedContent}`
           }]
         }],
         generationConfig: {
@@ -55,31 +62,52 @@ serve(async (req) => {
       })
     })
 
-    const data = await response.json()
-    console.log('Gemini API response:', JSON.stringify(data))
+    if (!response.ok) {
+      console.error('Gemini API error:', await response.text())
+      throw new Error('Failed to get response from Gemini API')
+    }
 
-    if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+    const data = await response.json()
+    console.log('Raw Gemini API response:', JSON.stringify(data))
+
+    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
       console.error('Invalid Gemini API response structure:', data)
-      throw new Error('Invalid response from Gemini API')
+      throw new Error('Invalid response structure from Gemini API')
     }
 
     let questions
     try {
       const responseText = data.candidates[0].content.parts[0].text
-      // Remove any markdown formatting or extra text before the JSON array
+      console.log('Parsing response text:', responseText)
+
+      // Find the JSON array in the response
       const jsonStart = responseText.indexOf('[')
       const jsonEnd = responseText.lastIndexOf(']') + 1
+      
+      if (jsonStart === -1 || jsonEnd === 0) {
+        throw new Error('No JSON array found in response')
+      }
+
       const jsonString = responseText.slice(jsonStart, jsonEnd)
+      console.log('Extracted JSON string:', jsonString)
+      
       questions = JSON.parse(jsonString)
 
       // Validate questions format
-      if (!Array.isArray(questions) || questions.length === 0) {
-        throw new Error('Questions must be a non-empty array')
+      if (!Array.isArray(questions)) {
+        throw new Error('Questions must be an array')
+      }
+
+      if (questions.length === 0) {
+        throw new Error('No questions generated')
       }
 
       questions.forEach((q, index) => {
-        if (!q.question || !Array.isArray(q.options) || !q.correct_answer) {
+        if (!q.question || !Array.isArray(q.options) || q.options.length !== 4 || !q.correct_answer) {
           throw new Error(`Invalid question format at index ${index}`)
+        }
+        if (!q.options.includes(q.correct_answer)) {
+          throw new Error(`Correct answer not found in options at index ${index}`)
         }
       })
     } catch (error) {
@@ -97,7 +125,7 @@ serve(async (req) => {
       .from('study_reels')
       .insert({
         title,
-        content,
+        content: truncatedContent,
         type: 'document',
         source_upload_id: uploadId,
         user_id: req.headers.get('x-user-id')
