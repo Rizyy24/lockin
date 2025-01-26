@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { content, userId, uploadId } = await req.json()
+    const { content, title, uploadId } = await req.json()
 
     if (!content) {
       throw new Error('Content is required')
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${geminiApiKey}`,
+        'x-goog-api-key': geminiApiKey,
       },
       body: JSON.stringify({
         contents: [{
@@ -101,13 +101,18 @@ Deno.serve(async (req) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       )
 
+      const { data: { user } } = await supabaseClient.auth.getUser(req.headers.get('Authorization')?.split(' ')[1] ?? '')
+      if (!user) {
+        throw new Error('Not authenticated')
+      }
+
       const { data: reel, error: reelError } = await supabaseClient
         .from('study_reels')
         .insert({
-          user_id: userId,
-          title: 'Generated Questions',
+          title: title,
           content: truncatedContent.slice(0, 500) + '...',
           type: 'quiz',
+          user_id: user.id,
           source_upload_id: uploadId
         })
         .select()
