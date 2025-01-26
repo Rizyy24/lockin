@@ -1,4 +1,3 @@
-import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {
@@ -10,18 +9,19 @@ export const ChatMessage = ({ content, isBot }: ChatMessageProps) => {
   return (
     <div
       className={cn(
-        "flex gap-3 p-4",
-        isBot ? "bg-white/5" : "bg-transparent"
+        "flex w-full",
+        isBot ? "justify-start" : "justify-end"
       )}
     >
-      <Avatar className="h-8 w-8">
-        <div className={cn(
-          "h-full w-full rounded-full",
-          isBot ? "bg-primary" : "bg-secondary"
-        )} />
-      </Avatar>
-      <div className="flex-1">
-        <p className="text-sm text-white leading-relaxed">{content}</p>
+      <div
+        className={cn(
+          "max-w-[80%] rounded-2xl px-4 py-2 text-sm",
+          isBot 
+            ? "bg-zinc-800 text-white ml-2" 
+            : "bg-purple-600 text-white mr-2"
+        )}
+      >
+        <p className="whitespace-pre-wrap">{content}</p>
       </div>
     </div>
   );

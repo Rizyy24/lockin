@@ -1,6 +1,5 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,31 +7,37 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
     const { message, userId } = await req.json();
-    console.log('Received request:', { message, userId });
 
-    // Get chat history
+    if (!message) {
+      throw new Error('Message is required');
+    }
+
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { data: chatHistory, error: historyError } = await supabaseClient
+    // Fetch chat history
+    const { data: chatHistory, error: chatError } = await supabaseClient
       .from('chat_messages')
-      .select('content, is_bot')
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: true })
       .limit(10);
 
-    if (historyError) {
-      console.error('Error fetching chat history:', historyError);
-      throw historyError;
+    if (chatError) {
+      throw chatError;
     }
 
     console.log('Chat history fetched:', chatHistory);
@@ -64,7 +69,13 @@ serve(async (req) => {
         'x-goog-api-key': Deno.env.get('GEMINI_API_KEY') || '',
       },
       body: JSON.stringify({
-        contents: messages,
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: 'You are a friendly and encouraging study buddy. Your role is to help students understand their study materials, provide clear explanations, and make learning engaging. Keep responses concise but informative. Always maintain a supportive and positive tone.' }]
+          },
+          ...messages
+        ],
         generationConfig: {
           temperature: 0.7,
           topK: 40,
@@ -100,10 +111,10 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             error: 'AI service is temporarily unavailable due to high demand. Please try again later.' 
-          }),
-          {
+          }), 
+          { 
             status: 429,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           }
         );
       }
@@ -124,32 +135,16 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({ response }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
-    console.error('Error in chat function:', error);
-    
-    // Handle quota errors consistently
-    if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'AI service is temporarily unavailable due to high demand. Please try again later.' 
-        }),
-        {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
-    }
-    
+    console.error('Error:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      { 
         status: 500,
-      }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      },
     );
   }
 });
