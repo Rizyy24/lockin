@@ -1,10 +1,8 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
@@ -68,7 +66,7 @@ Deno.serve(async (req) => {
     const responseText = data.candidates[0].content.parts[0].text
     console.log('Response text:', responseText)
 
-    // Extract JSON array from response
+    // Extract JSON array from response with improved error handling
     try {
       const jsonStart = responseText.indexOf('[')
       const jsonEnd = responseText.lastIndexOf(']') + 1
@@ -78,7 +76,16 @@ Deno.serve(async (req) => {
         throw new Error('No JSON array found in response')
       }
 
-      const jsonStr = responseText.slice(jsonStart, jsonEnd)
+      let jsonStr = responseText.slice(jsonStart, jsonEnd)
+      
+      // Clean up potential Unicode escape sequences
+      jsonStr = jsonStr.replace(/\\u[\dA-F]{4}/gi, match => 
+        String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16))
+      )
+
+      // Remove any invalid escape sequences
+      jsonStr = jsonStr.replace(/\\([^"\\\/bfnrtu])/g, '$1')
+
       const questions = JSON.parse(jsonStr)
 
       // Validate questions format
