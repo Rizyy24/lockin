@@ -62,11 +62,16 @@ serve(async (req) => {
 
     console.log('Sending messages to Gemini:', messages);
 
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not configured');
+    }
+
     const geminiResponse = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': Deno.env.get('GEMINI_API_KEY') || '',
+        'x-goog-api-key': GEMINI_API_KEY,
       },
       body: JSON.stringify({
         contents: [
@@ -106,47 +111,39 @@ serve(async (req) => {
     if (!geminiResponse.ok) {
       const errorData = await geminiResponse.json();
       console.error('Gemini API error response:', errorData);
-      
-      if (geminiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'AI service is temporarily unavailable due to high demand. Please try again later.' 
-          }), 
-          { 
-            status: 429,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      }
-      
       throw new Error(`Gemini API error: ${JSON.stringify(errorData)}`);
     }
 
     const data = await geminiResponse.json();
-    console.log('Gemini response:', data);
+    console.log('Raw Gemini response:', JSON.stringify(data, null, 2));
 
-    // Improved response validation
-    if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.error('Unexpected Gemini response format:', data);
-      throw new Error('Invalid response format from Gemini');
+    // Enhanced response validation
+    if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      console.error('Invalid Gemini response structure:', data);
+      throw new Error('Invalid response structure from Gemini API');
     }
 
     const response = data.candidates[0].content.parts[0].text;
-    console.log('Final response:', response);
-
-    // Validate response is a string
-    if (typeof response !== 'string') {
-      throw new Error('Invalid response type from Gemini');
+    
+    // Additional validation for response content
+    if (typeof response !== 'string' || response.trim().length === 0) {
+      console.error('Invalid response content:', response);
+      throw new Error('Invalid or empty response from Gemini API');
     }
+
+    console.log('Processed response:', response);
 
     return new Response(
       JSON.stringify({ response }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Error in chat function:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        details: error.stack 
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
