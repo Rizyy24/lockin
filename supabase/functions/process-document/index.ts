@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import "https://deno.land/x/xhr@0.1.0/mod.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
@@ -9,11 +8,12 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
     const { content, title, uploadId } = await req.json()
+    console.log('Processing document:', { title, contentLength: content?.length })
 
     // Call Gemini API to generate questions
     const response = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
@@ -25,7 +25,7 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Generate 5 multiple choice questions based on this content. Format your response as a JSON array of objects, where each object has: question (string), options (array of 4 strings), and correct_answer (string matching one of the options). Content: ${content}`
+            text: `You are a helpful study assistant. Generate 5 multiple choice questions based on this content. Format your response as a JSON array of objects, where each object has these exact fields: "question" (string), "options" (array of 4 strings), and "correct_answer" (string matching one of the options). Content: ${content}`
           }]
         }],
         generationConfig: {
@@ -56,13 +56,36 @@ serve(async (req) => {
     })
 
     const data = await response.json()
-    console.log('Gemini response:', data)
+    console.log('Gemini API response:', JSON.stringify(data))
 
     if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+      console.error('Invalid Gemini API response structure:', data)
       throw new Error('Invalid response from Gemini API')
     }
 
-    const questions = JSON.parse(data.candidates[0].content.parts[0].text)
+    let questions
+    try {
+      const responseText = data.candidates[0].content.parts[0].text
+      // Remove any markdown formatting or extra text before the JSON array
+      const jsonStart = responseText.indexOf('[')
+      const jsonEnd = responseText.lastIndexOf(']') + 1
+      const jsonString = responseText.slice(jsonStart, jsonEnd)
+      questions = JSON.parse(jsonString)
+
+      // Validate questions format
+      if (!Array.isArray(questions) || questions.length === 0) {
+        throw new Error('Questions must be a non-empty array')
+      }
+
+      questions.forEach((q, index) => {
+        if (!q.question || !Array.isArray(q.options) || !q.correct_answer) {
+          throw new Error(`Invalid question format at index ${index}`)
+        }
+      })
+    } catch (error) {
+      console.error('Error parsing questions:', error)
+      throw new Error(`Failed to parse questions: ${error.message}`)
+    }
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -82,7 +105,10 @@ serve(async (req) => {
       .select()
       .single()
 
-    if (reelError) throw reelError
+    if (reelError) {
+      console.error('Error creating study reel:', reelError)
+      throw reelError
+    }
 
     // Insert questions into the database
     for (const q of questions) {
@@ -96,21 +122,21 @@ serve(async (req) => {
           type: 'multiple_choice'
         })
 
-      if (questionError) throw questionError
+      if (questionError) {
+        console.error('Error inserting question:', questionError)
+        throw questionError
+      }
     }
 
     return new Response(
       JSON.stringify({ success: true, reelId: reel.id }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error in process-document function:', error)
+    console.error('Process document error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     )
   }
 })
