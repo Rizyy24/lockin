@@ -20,8 +20,14 @@ export const ChatMessage = ({ content, isBot }: ChatMessageProps) => {
             ? "bg-zinc-800 text-white ml-2" 
             : "bg-purple-600 text-white mr-2"
         )}
+        style={{
+          wordWrap: "break-word",
+          overflowWrap: "break-word",
+          maxWidth: isBot ? "280px" : "80%", // Approximately 15 words width for bot messages
+          whiteSpace: "pre-wrap",
+        }}
       >
-        <p className="whitespace-pre-wrap">{content}</p>
+        <p>{content}</p>
       </div>
     </div>
   );
