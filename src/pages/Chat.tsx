@@ -71,7 +71,7 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
   );
 };
 
-const ChatInterface = () => {
+const ChatInterface = ({ onBack }: { onBack: () => void }) => {
   const user = useUser();
   const { messages, input, setInput, handleSubmit, isLoading } = useChat(
     user?.id || ""
@@ -89,9 +89,9 @@ const ChatInterface = () => {
     <div className="flex flex-col h-full">
       <div className="sticky top-0 z-50 flex items-center justify-between p-4 border-b border-white/10 bg-black">
         <div className="flex items-center gap-2">
-          <Link to="/chat">
+          <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-6 h-6" />
-          </Link>
+          </Button>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
               SB
@@ -115,7 +115,7 @@ const Chat = () => {
   const [isChattingStarted, setIsChattingStarted] = useState(false);
 
   if (isChattingStarted) {
-    return <ChatInterface />;
+    return <ChatInterface onBack={() => setIsChattingStarted(false)} />;
   }
 
   return <ChatLanding onStartChat={() => setIsChattingStarted(true)} />;
