@@ -14,17 +14,14 @@ const Reels = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
 
-  const { data: reels, isLoading } = useQuery({
+  const { data: reels, isLoading, error } = useQuery({
     queryKey: ['study-reels'],
     queryFn: async () => {
+      console.log('Fetching reels...');
       const { data, error } = await supabase
         .from('study_reels')
         .select(`
           *,
-          uploads (
-            file_name,
-            file_path
-          ),
           questions (
             id,
             question,
@@ -36,6 +33,7 @@ const Reels = () => {
         .order('created_at', { ascending: false });
 
       if (error) {
+        console.error('Error fetching reels:', error);
         toast({
           title: "Error loading reels",
           description: error.message,
@@ -44,6 +42,7 @@ const Reels = () => {
         throw error;
       }
 
+      console.log('Fetched reels:', data);
       return data;
     },
   });
@@ -95,6 +94,15 @@ const Reels = () => {
     }, { once: true });
   };
 
+  const convertOptions = (options: Json | null): string[] => {
+    if (!options) return [];
+    if (Array.isArray(options)) {
+      return options.map(opt => String(opt));
+    }
+    console.warn('Invalid options format:', options);
+    return [];
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
@@ -105,11 +113,34 @@ const Reels = () => {
     );
   }
 
-  const convertOptions = (options: Json | null): string[] => {
-    if (!options) return [];
-    if (Array.isArray(options)) return options as string[];
-    return [];
-  };
+  if (error) {
+    return (
+      <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
+        <div className="glass-card p-8 text-red-500">
+          Error loading reels. Please try again.
+        </div>
+      </div>
+    );
+  }
+
+  if (!reels?.length) {
+    return (
+      <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
+        <div className="glass-card p-8">
+          No reels available. Try uploading a document first!
+        </div>
+      </div>
+    );
+  }
+
+  const allQuestions = reels.flatMap(reel => 
+    reel.questions?.map(question => ({
+      ...question,
+      options: convertOptions(question.options)
+    })) || []
+  );
+
+  console.log('Processed questions:', allQuestions);
 
   return (
     <div className="min-h-screen bg-black text-foreground overflow-hidden">
@@ -121,25 +152,23 @@ const Reels = () => {
         className="h-screen overflow-y-auto snap-y snap-mandatory"
         style={{ scrollSnapType: 'y mandatory' }}
       >
-        {reels?.map((reel) => (
-          reel.questions?.map((question) => (
-            <ReelQuestion 
-              key={question.id} 
-              question={{
-                id: question.id,
-                question: question.question,
-                options: convertOptions(question.options),
-                correct_answer: question.correct_answer
-              }} 
-            />
-          ))
+        {allQuestions.map((question) => (
+          <ReelQuestion 
+            key={question.id} 
+            question={{
+              id: question.id,
+              question: question.question,
+              options: question.options,
+              correct_answer: question.correct_answer
+            }} 
+          />
         ))}
       </div>
       
       <ReelScrollControls
         onScroll={handleScroll}
         isAtStart={currentIndex === 0}
-        isAtEnd={reels ? currentIndex === reels.length - 1 : true}
+        isAtEnd={allQuestions ? currentIndex === allQuestions.length - 1 : true}
       />
       
       <Navigation />
