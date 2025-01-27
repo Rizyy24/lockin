@@ -32,15 +32,15 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Create 5 multiple choice questions based on this content. Format your response as a JSON array where each question object has these exact fields:
+            text: `Based on the following content, create 5 multiple choice questions. Each question should test understanding of key concepts from the content. Format your response as a valid JSON array where each question object has these fields:
             {
               "question": "the question text",
               "options": ["option1", "option2", "option3", "option4"],
-              "correct_answer": "the correct option that matches one from the options array",
+              "correct_answer": "the correct option that matches exactly one from the options array",
               "type": "multiple_choice"
             }
             
-            Content to generate questions from: ${truncatedContent}`
+            Content to analyze: ${truncatedContent}`
           }]
         }],
         generationConfig: {
@@ -66,10 +66,11 @@ Deno.serve(async (req) => {
     }
 
     const responseText = data.candidates[0].content.parts[0].text
-    console.log('Response text:', responseText)
+    console.log('Raw response text:', responseText)
 
     // Extract JSON array from response with improved error handling
     try {
+      // Find the JSON array in the response
       const jsonStart = responseText.indexOf('[')
       const jsonEnd = responseText.lastIndexOf(']') + 1
       
@@ -80,14 +81,22 @@ Deno.serve(async (req) => {
 
       let jsonStr = responseText.slice(jsonStart, jsonEnd)
       
-      // Clean up potential Unicode escape sequences
-      jsonStr = jsonStr.replace(/\\u[\dA-F]{4}/gi, match => 
-        String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16))
-      )
+      // Clean up common formatting issues
+      jsonStr = jsonStr
+        // Remove any line breaks and extra spaces
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        // Handle escaped quotes properly
+        .replace(/\\"/g, '"')
+        // Remove any invalid escape sequences
+        .replace(/\\([^"\\\/bfnrtu])/g, '$1')
+        // Properly escape Unicode sequences
+        .replace(/\\u([0-9a-fA-F]{4})/g, (match, p1) => 
+          String.fromCharCode(parseInt(p1, 16))
+        )
 
-      // Remove any invalid escape sequences
-      jsonStr = jsonStr.replace(/\\([^"\\\/bfnrtu])/g, '$1')
-
+      console.log('Cleaned JSON string:', jsonStr)
+      
       const questions = JSON.parse(jsonStr)
 
       // Validate questions format
@@ -95,12 +104,10 @@ Deno.serve(async (req) => {
         throw new Error('Response is not an array')
       }
 
-      questions.forEach((q: any, index: number) => {
-        if (!q.question || !Array.isArray(q.options) || !q.correct_answer) {
+      questions.forEach((q, index) => {
+        if (!q.question || !Array.isArray(q.options) || !q.correct_answer || !q.options.includes(q.correct_answer)) {
+          console.error('Invalid question format:', q)
           throw new Error(`Invalid question format at index ${index}`)
-        }
-        if (!q.options.includes(q.correct_answer)) {
-          throw new Error(`Correct answer not found in options at index ${index}`)
         }
       })
 
@@ -135,7 +142,7 @@ Deno.serve(async (req) => {
       const { error: questionsError } = await supabaseClient
         .from('questions')
         .insert(
-          questions.map((q: any) => ({
+          questions.map(q => ({
             reel_id: reel.id,
             question: q.question,
             options: q.options,
@@ -150,7 +157,6 @@ Deno.serve(async (req) => {
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
       })
     } catch (error) {
       console.error('Error processing Gemini response:', error)
