@@ -6,6 +6,7 @@ import { useState, useRef, useEffect } from "react";
 import { ReelQuestion } from "@/components/reels/ReelQuestion";
 import { ReelNavigation } from "@/components/reels/ReelNavigation";
 import { ReelScrollControls } from "@/components/reels/ReelScrollControls";
+import { Json } from "@/integrations/supabase/types";
 
 const Reels = () => {
   const { toast } = useToast();
@@ -104,6 +105,12 @@ const Reels = () => {
     );
   }
 
+  const convertOptions = (options: Json | null): string[] => {
+    if (!options) return [];
+    if (Array.isArray(options)) return options as string[];
+    return [];
+  };
+
   return (
     <div className="min-h-screen bg-black text-foreground overflow-hidden">
       <ReelNavigation />
@@ -116,7 +123,15 @@ const Reels = () => {
       >
         {reels?.map((reel) => (
           reel.questions?.map((question) => (
-            <ReelQuestion key={question.id} question={question} />
+            <ReelQuestion 
+              key={question.id} 
+              question={{
+                id: question.id,
+                question: question.question,
+                options: convertOptions(question.options),
+                correct_answer: question.correct_answer
+              }} 
+            />
           ))
         ))}
       </div>
