@@ -1,3 +1,4 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { corsHeaders } from '../_shared/cors.ts'
 
 Deno.serve(async (req) => {
@@ -35,7 +36,8 @@ Deno.serve(async (req) => {
             {
               "question": "the question text",
               "options": ["option1", "option2", "option3", "option4"],
-              "correct_answer": "the correct option that matches one from the options array"
+              "correct_answer": "the correct option that matches one from the options array",
+              "type": "multiple_choice"
             }
             
             Content to generate questions from: ${truncatedContent}`
