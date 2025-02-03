@@ -28,7 +28,7 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profiles!friendships_user_id_fkey (
+          profiles:user_id(
             username,
             avatar_url
           )
