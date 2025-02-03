@@ -10,10 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface LeaderboardEntry {
   user_id: string;
   aura_points: number;
-  profiles: {
+  profile: {
     username: string | null;
     avatar_url: string | null;
-  };
+  } | null;
 }
 
 const Leaderboard = () => {
@@ -24,21 +24,18 @@ const Leaderboard = () => {
     queryKey: ["leaderboard", activeTab],
     queryFn: async () => {
       if (activeTab === "global") {
-        const { data, error } = await supabase
+        const { data: userAuraData, error } = await supabase
           .from("user_aura")
           .select(`
             user_id,
             aura_points,
-            profiles (
-              username,
-              avatar_url
-            )
+            profile:profiles!user_aura_user_id_fkey(username, avatar_url)
           `)
           .order("aura_points", { ascending: false })
           .limit(100);
 
         if (error) throw error;
-        return data as LeaderboardEntry[];
+        return userAuraData as LeaderboardEntry[];
       } else {
         const { data: friendships, error: friendshipsError } = await supabase
           .from("friendships")
@@ -51,21 +48,18 @@ const Leaderboard = () => {
         const friendIds = friendships.map((f) => f.friend_id);
         friendIds.push(user?.id!);
 
-        const { data, error } = await supabase
+        const { data: userAuraData, error } = await supabase
           .from("user_aura")
           .select(`
             user_id,
             aura_points,
-            profiles (
-              username,
-              avatar_url
-            )
+            profile:profiles!user_aura_user_id_fkey(username, avatar_url)
           `)
           .in("user_id", friendIds)
           .order("aura_points", { ascending: false });
 
         if (error) throw error;
-        return data as LeaderboardEntry[];
+        return userAuraData as LeaderboardEntry[];
       }
     },
     enabled: !!user,
@@ -115,11 +109,11 @@ const LeaderboardList = ({ entries }: { entries: LeaderboardEntry[] }) => {
           <div className="text-xl font-bold text-purple-500 w-8">{index + 1}</div>
           <Avatar className="w-10 h-10">
             <div className="w-full h-full bg-purple-600 flex items-center justify-center text-white">
-              {entry.profiles?.username?.[0]?.toUpperCase() || "?"}
+              {entry.profile?.username?.[0]?.toUpperCase() || "?"}
             </div>
           </Avatar>
           <div className="flex-1">
-            <div className="font-medium">{entry.profiles?.username || "Anonymous"}</div>
+            <div className="font-medium">{entry.profile?.username || "Anonymous"}</div>
           </div>
           <div className="text-purple-500 font-bold">{entry.aura_points} AP</div>
         </div>

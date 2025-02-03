@@ -11,10 +11,10 @@ interface FriendRequest {
   friend_id: string;
   status: string;
   created_at: string;
-  profiles: {
+  profile: {
     username: string | null;
     avatar_url: string | null;
-  };
+  } | null;
 }
 
 export default function Requests() {
@@ -28,10 +28,7 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profiles (
-            username,
-            avatar_url
-          )
+          profile:profiles!friendships_user_id_fkey(username, avatar_url)
         `)
         .eq("friend_id", session?.user?.id)
         .eq("status", "pending");
@@ -79,17 +76,17 @@ export default function Requests() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                  {request.profiles.avatar_url ? (
+                  {request.profile?.avatar_url ? (
                     <img
-                      src={request.profiles.avatar_url}
-                      alt={request.profiles.username || ""}
+                      src={request.profile.avatar_url}
+                      alt={request.profile.username || ""}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <span className="text-xl">{request.profiles.username?.[0]?.toUpperCase()}</span>
+                    <span className="text-xl">{request.profile?.username?.[0]?.toUpperCase()}</span>
                   )}
                 </div>
-                <span className="font-medium">{request.profiles.username}</span>
+                <span className="font-medium">{request.profile?.username}</span>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -112,4 +109,4 @@ export default function Requests() {
       <Navigation />
     </div>
   );
-};
+}
