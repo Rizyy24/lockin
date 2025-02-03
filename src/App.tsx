@@ -12,6 +12,7 @@ import Auth from "./pages/Auth";
 import CreateProfile from "./pages/CreateProfile";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
+import Requests from "./pages/Requests";
 import { supabase } from "./integrations/supabase/client";
 
 const App = () => {
@@ -40,6 +41,7 @@ const App = () => {
               <Route path="/chat" element={<Chat />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
+              <Route path="/requests" element={<Requests />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
