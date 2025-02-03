@@ -11,7 +11,7 @@ interface LeaderboardEntry {
   user_id: string;
   aura_points: number;
   profiles: {
-    username: string;
+    username: string | null;
     avatar_url: string | null;
   };
 }
@@ -29,7 +29,7 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles!user_aura_user_id_fkey (
+            profiles (
               username,
               avatar_url
             )
@@ -56,7 +56,7 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles!user_aura_user_id_fkey (
+            profiles (
               username,
               avatar_url
             )
