@@ -29,16 +29,16 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles!user_aura_user_id_fkey(username, avatar_url)
+            profiles:profiles!user_aura_user_id_fkey(
+              username,
+              avatar_url
+            )
           `)
           .order("aura_points", { ascending: false })
           .limit(100);
 
         if (error) throw error;
-        return data.map(entry => ({
-          ...entry,
-          profiles: entry.profiles
-        })) as LeaderboardEntry[];
+        return data as LeaderboardEntry[];
       } else {
         const { data: friendships, error: friendshipsError } = await supabase
           .from("friendships")
@@ -49,23 +49,23 @@ const Leaderboard = () => {
         if (friendshipsError) throw friendshipsError;
 
         const friendIds = friendships.map((f) => f.friend_id);
-        friendIds.push(user?.id!); // Include current user
+        friendIds.push(user?.id!);
 
         const { data, error } = await supabase
           .from("user_aura")
           .select(`
             user_id,
             aura_points,
-            profiles!user_aura_user_id_fkey(username, avatar_url)
+            profiles:profiles!user_aura_user_id_fkey(
+              username,
+              avatar_url
+            )
           `)
           .in("user_id", friendIds)
           .order("aura_points", { ascending: false });
 
         if (error) throw error;
-        return data.map(entry => ({
-          ...entry,
-          profiles: entry.profiles
-        })) as LeaderboardEntry[];
+        return data as LeaderboardEntry[];
       }
     },
     enabled: !!user,
