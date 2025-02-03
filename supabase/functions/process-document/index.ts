@@ -32,15 +32,17 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Based on the following content, create 5 multiple choice questions. Each question should test understanding of key concepts from the content. Format your response as a valid JSON array where each question object has these fields:
-            {
-              "question": "the question text",
-              "options": ["option1", "option2", "option3", "option4"],
-              "correct_answer": "the correct option that matches exactly one from the options array",
-              "type": "multiple_choice"
-            }
-            
-            Content to analyze: ${truncatedContent}`
+            text: `You are an AI that generates study questions based on study material. Given the text below, create 5 multiple-choice questions. Each question should test understanding of key concepts from the content.
+
+Format your response as a valid JSON array where each question object has these exact fields:
+{
+  "question": "the question text",
+  "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
+  "correct_answer": "the correct option that matches exactly one from the options array",
+  "type": "multiple_choice"
+}
+
+Study Material to analyze: ${truncatedContent}`
           }]
         }],
         generationConfig: {
