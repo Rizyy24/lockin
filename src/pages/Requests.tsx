@@ -28,7 +28,7 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profiles:user_id(
+          profiles (
             username,
             avatar_url
           )
@@ -112,4 +112,4 @@ export default function Requests() {
       <Navigation />
     </div>
   );
-}
+};

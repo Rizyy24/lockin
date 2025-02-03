@@ -29,7 +29,7 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles:user_id(
+            profiles (
               username,
               avatar_url
             )
@@ -56,7 +56,7 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles:user_id(
+            profiles (
               username,
               avatar_url
             )
