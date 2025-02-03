@@ -12,8 +12,8 @@ interface FriendRequest {
   status: string;
   created_at: string;
   profiles: {
-    username: string;
-    avatar_url: string;
+    username: string | null;
+    avatar_url: string | null;
   };
 }
 
@@ -28,7 +28,10 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profiles:user_id(username, avatar_url)
+          profiles!friendships_user_id_fkey (
+            username,
+            avatar_url
+          )
         `)
         .eq("friend_id", session?.user?.id)
         .eq("status", "pending");
@@ -79,7 +82,7 @@ export default function Requests() {
                   {request.profiles.avatar_url ? (
                     <img
                       src={request.profiles.avatar_url}
-                      alt={request.profiles.username}
+                      alt={request.profiles.username || ""}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
