@@ -92,6 +92,8 @@ Study Material to analyze: ${truncatedContent}`
         .replace(/\\"/g, '"')
         // Remove any invalid escape sequences
         .replace(/\\([^"\\\/bfnrtu])/g, '$1')
+        // Remove any remaining backslashes before non-special characters
+        .replace(/\\(?!["\\/bfnrtu])/g, '')
         // Properly escape Unicode sequences
         .replace(/\\u([0-9a-fA-F]{4})/g, (match, p1) => 
           String.fromCharCode(parseInt(p1, 16))
