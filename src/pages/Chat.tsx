@@ -27,23 +27,23 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
       const { data, error } = await supabase
         .from("friendships")
         .select(`
-          profiles:profiles!friendships_friend_id_fkey(
-            username,
-            avatar_url
+          friend:friend_id(
+            profiles!profiles_id_fkey (
+              username,
+              avatar_url
+            )
           )
         `)
         .eq("user_id", user?.id)
         .eq("status", "accepted");
 
       if (error) throw error;
-      return data as Friend[];
+      return (data as any[]).map(item => ({
+        profiles: item.friend.profiles
+      })) as Friend[];
     },
     enabled: !!user,
   });
-
-  const filteredFriends = friends.filter(friend => 
-    friend.profiles.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <div className="flex flex-col h-full bg-black text-white">
@@ -97,7 +97,7 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
         </div>
 
         <div className="space-y-2">
-          {filteredFriends.map((friend, index) => (
+          {friends.map((friend, index) => (
             <button 
               key={index}
               className="flex items-center gap-4 w-full p-4 hover:bg-zinc-900/50 transition-colors"
@@ -111,7 +111,7 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
               </div>
             </button>
           ))}
-          {filteredFriends.length === 0 && (
+          {friends.length === 0 && (
             <div className="text-center text-gray-500 py-4">
               {searchQuery ? "No friends found" : "No friends yet"}
             </div>
