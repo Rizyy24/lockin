@@ -12,7 +12,7 @@ interface LeaderboardEntry {
   aura_points: number;
   profiles: {
     username: string;
-    avatar_url: string;
+    avatar_url: string | null;
   };
 }
 
@@ -29,13 +29,16 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles:profiles(username, avatar_url)
+            profiles!user_aura_user_id_fkey(username, avatar_url)
           `)
           .order("aura_points", { ascending: false })
           .limit(100);
 
         if (error) throw error;
-        return data as LeaderboardEntry[];
+        return data.map(entry => ({
+          ...entry,
+          profiles: entry.profiles
+        })) as LeaderboardEntry[];
       } else {
         const { data: friendships, error: friendshipsError } = await supabase
           .from("friendships")
@@ -53,13 +56,16 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles:profiles(username, avatar_url)
+            profiles!user_aura_user_id_fkey(username, avatar_url)
           `)
           .in("user_id", friendIds)
           .order("aura_points", { ascending: false });
 
         if (error) throw error;
-        return data as LeaderboardEntry[];
+        return data.map(entry => ({
+          ...entry,
+          profiles: entry.profiles
+        })) as LeaderboardEntry[];
       }
     },
     enabled: !!user,

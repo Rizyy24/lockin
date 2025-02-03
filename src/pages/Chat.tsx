@@ -27,7 +27,7 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
       const { data, error } = await supabase
         .from("friendships")
         .select(`
-          friend:profiles!friendships_friend_id_fkey(
+          profiles:profiles!friendships_friend_id_fkey(
             username,
             avatar_url
           )
