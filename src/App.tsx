@@ -11,6 +11,7 @@ import Chat from "./pages/Chat";
 import Auth from "./pages/Auth";
 import CreateProfile from "./pages/CreateProfile";
 import Profile from "./pages/Profile";
+import Leaderboard from "./pages/Leaderboard";
 import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/reels" element={<Reels />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

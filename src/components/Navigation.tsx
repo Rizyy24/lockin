@@ -1,4 +1,4 @@
-import { Home, Plus, Video, User } from "lucide-react";
+import { Home, Plus, Video, Trophy, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 export const Navigation = () => {
@@ -14,6 +14,9 @@ export const Navigation = () => {
       </Link>
       <Link to="/reels" className={`nav-icon ${location.pathname === "/reels" ? "text-white" : ""}`}>
         <Video className="w-6 h-6" />
+      </Link>
+      <Link to="/leaderboard" className={`nav-icon ${location.pathname === "/leaderboard" ? "text-white" : ""}`}>
+        <Trophy className="w-6 h-6" />
       </Link>
       <Link to="/profile" className={`nav-icon ${location.pathname === "/profile" ? "text-white" : ""}`}>
         <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center">

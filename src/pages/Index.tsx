@@ -1,10 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigation } from "@/components/Navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import { Search, UserPlus } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -16,6 +22,57 @@ const Index = () => {
     
     checkAuth();
   }, [navigate]);
+
+  const handleAddFriend = async () => {
+    if (!username.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a username",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Find user by username
+      const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, username")
+        .eq("username", username)
+        .single();
+
+      if (profileError || !profiles) {
+        throw new Error("User not found");
+      }
+
+      // Create friendship request
+      const { error: friendshipError } = await supabase
+        .from("friendships")
+        .insert({
+          user_id: (await supabase.auth.getUser()).data.user?.id,
+          friend_id: profiles.id,
+        });
+
+      if (friendshipError) {
+        if (friendshipError.code === '23505') {
+          throw new Error("Friend request already sent");
+        }
+        throw friendshipError;
+      }
+
+      toast({
+        title: "Success",
+        description: "Friend request sent!",
+      });
+      setUsername("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -47,6 +104,21 @@ const Index = () => {
               >
                 Study Reels
               </button>
+            </div>
+          </div>
+
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-semibold mb-3">Add Friends</h3>
+            <div className="flex gap-2">
+              <Input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
+                className="flex-1"
+              />
+              <Button onClick={handleAddFriend}>
+                <UserPlus className="w-4 h-4" />
+              </Button>
             </div>
           </div>
         </main>

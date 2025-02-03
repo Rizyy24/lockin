@@ -7,8 +7,44 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Pencil, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Friend {
+  profiles: {
+    username: string;
+    avatar_url: string | null;
+  };
+}
 
 const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
+  const user = useUser();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const { data: friends = [] } = useQuery({
+    queryKey: ["friends"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("friendships")
+        .select(`
+          friend:profiles!friendships_friend_id_fkey(
+            username,
+            avatar_url
+          )
+        `)
+        .eq("user_id", user?.id)
+        .eq("status", "accepted");
+
+      if (error) throw error;
+      return data as Friend[];
+    },
+    enabled: !!user,
+  });
+
+  const filteredFriends = friends.filter(friend => 
+    friend.profiles.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="flex flex-col h-full bg-black text-white">
       {/* Header */}
@@ -29,6 +65,8 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
           <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search conversations"
             className="pl-10 bg-zinc-900 border-none"
           />
@@ -37,26 +75,10 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
 
       {/* Study Buddy Card */}
       <div className="mx-4 p-6 rounded-lg bg-zinc-900/50 border border-white/10">
-        <h2 className="text-lg font-medium mb-2">Your Personal Study Buddy</h2>
-        <p className="text-gray-400">
-          Hey! I'm your dedicated study companion. I can help you understand complex topics,
-          quiz you on materials, and make learning more engaging. Let's ace those studies together! 
-        </p>
-      </div>
-
-      {/* Messages Section */}
-      <div className="flex-1 mt-6">
-        <div className="flex justify-between px-4 mb-4">
-          <h2 className="text-lg font-medium">Messages</h2>
-          <Link to="/requests" className="text-purple-500">
-            Study Sessions
-          </Link>
-        </div>
-
-        {/* StudyBot Button */}
+        <h2 className="text-lg font-medium mb-2">Chatbot</h2>
         <button 
           onClick={onStartChat}
-          className="flex items-center gap-4 w-full p-4 hover:bg-zinc-900/50 transition-colors"
+          className="flex items-center gap-4 w-full hover:bg-zinc-800/50 p-4 rounded-lg transition-colors"
         >
           <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
             SB
@@ -66,6 +88,35 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
             <p className="text-sm text-gray-400">Ready to help you learn!</p>
           </div>
         </button>
+      </div>
+
+      {/* Friends Section */}
+      <div className="flex-1 mt-6">
+        <div className="flex justify-between px-4 mb-4">
+          <h2 className="text-lg font-medium">Friends</h2>
+        </div>
+
+        <div className="space-y-2">
+          {filteredFriends.map((friend, index) => (
+            <button 
+              key={index}
+              className="flex items-center gap-4 w-full p-4 hover:bg-zinc-900/50 transition-colors"
+            >
+              <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center text-white font-semibold">
+                {friend.profiles.username[0]?.toUpperCase()}
+              </div>
+              <div className="text-left">
+                <h3 className="font-medium">{friend.profiles.username}</h3>
+                <p className="text-sm text-gray-400">Online</p>
+              </div>
+            </button>
+          ))}
+          {filteredFriends.length === 0 && (
+            <div className="text-center text-gray-500 py-4">
+              {searchQuery ? "No friends found" : "No friends yet"}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
