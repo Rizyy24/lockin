@@ -5,7 +5,7 @@ import { Navigation } from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, MessageSquare } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -91,18 +91,13 @@ const Index = () => {
 
           <div className="glass-card p-6">
             <h3 className="text-lg font-semibold mb-3">Quick Actions</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <button 
                 onClick={() => navigate('/chat')}
-                className="p-4 glass-card hover:bg-white/5 transition-colors"
+                className="p-4 glass-card hover:bg-white/5 transition-colors flex items-center gap-2"
               >
-                Study Chat
-              </button>
-              <button 
-                onClick={() => navigate('/reels')}
-                className="p-4 glass-card hover:bg-white/5 transition-colors"
-              >
-                Study Reels
+                <MessageSquare className="w-5 h-5" />
+                <span>Chat</span>
               </button>
             </div>
           </div>
