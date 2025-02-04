@@ -2,7 +2,7 @@ import { useSession } from "@supabase/auth-helpers-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Navigation } from "@/components/Navigation";
 
 interface FriendRequest {
@@ -28,7 +28,7 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profile:profiles!friendships_user_id_fkey(username, avatar_url)
+          profile:profiles(username, avatar_url)
         `)
         .eq("friend_id", session?.user?.id)
         .eq("status", "pending");
