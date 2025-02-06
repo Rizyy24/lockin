@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface LeaderboardEntry {
   user_id: string;
   aura_points: number;
-  profile: {
+  profiles: {
     username: string | null;
     avatar_url: string | null;
   } | null;
@@ -29,7 +29,7 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profile:profiles!user_aura_user_id_fkey(username, avatar_url)
+            profiles!user_aura_user_id_fkey (username, avatar_url)
           `)
           .order("aura_points", { ascending: false })
           .limit(100);
@@ -53,7 +53,7 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profile:profiles!user_aura_user_id_fkey(username, avatar_url)
+            profiles!user_aura_user_id_fkey (username, avatar_url)
           `)
           .in("user_id", friendIds)
           .order("aura_points", { ascending: false });
@@ -109,11 +109,11 @@ const LeaderboardList = ({ entries }: { entries: LeaderboardEntry[] }) => {
           <div className="text-xl font-bold text-purple-500 w-8">{index + 1}</div>
           <Avatar className="w-10 h-10">
             <div className="w-full h-full bg-purple-600 flex items-center justify-center text-white">
-              {entry.profile?.username?.[0]?.toUpperCase() || "?"}
+              {entry.profiles?.username?.[0]?.toUpperCase() || "?"}
             </div>
           </Avatar>
           <div className="flex-1">
-            <div className="font-medium">{entry.profile?.username || "Anonymous"}</div>
+            <div className="font-medium">{entry.profiles?.username || "Anonymous"}</div>
           </div>
           <div className="text-purple-500 font-bold">{entry.aura_points} AP</div>
         </div>
