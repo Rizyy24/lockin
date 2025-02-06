@@ -34,7 +34,6 @@ const Index = () => {
     }
 
     try {
-      // Find user by username
       const { data: profiles, error: profileError } = await supabase
         .from("profiles")
         .select("id, username")
@@ -45,7 +44,6 @@ const Index = () => {
         throw new Error("User not found");
       }
 
-      // Create friendship request
       const { error: friendshipError } = await supabase
         .from("friendships")
         .insert({
@@ -79,6 +77,13 @@ const Index = () => {
       <div className="max-w-2xl mx-auto p-4">
         <header className="app-header">
           <h1 className="text-2xl font-bold">LockIn</h1>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => navigate('/chat')}
+          >
+            <MessageSquare className="w-6 h-6" />
+          </Button>
         </header>
 
         <main className="space-y-6">
@@ -90,21 +95,8 @@ const Index = () => {
           </div>
 
           <div className="glass-card p-6">
-            <h3 className="text-lg font-semibold mb-3">Quick Actions</h3>
-            <div className="grid grid-cols-1 gap-4">
-              <button 
-                onClick={() => navigate('/chat')}
-                className="p-4 glass-card hover:bg-white/5 transition-colors flex items-center gap-2"
-              >
-                <MessageSquare className="w-5 h-5" />
-                <span>Chat</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="glass-card p-6">
             <h3 className="text-lg font-semibold mb-3">Add Friends</h3>
-            <div className="flex gap-2">
+            <div className="flex gap-2 mb-4">
               <Input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -114,6 +106,13 @@ const Index = () => {
               <Button onClick={handleAddFriend}>
                 <UserPlus className="w-4 h-4" />
               </Button>
+            </div>
+            
+            <div className="mt-4">
+              <h4 className="text-md font-semibold mb-2">Recent Posts</h4>
+              <div className="glass-card p-4">
+                <p className="text-gray-400">No posts yet</p>
+              </div>
             </div>
           </div>
         </main>

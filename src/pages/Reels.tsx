@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect } from "react";
 import { ReelQuestion } from "@/components/reels/ReelQuestion";
-import { ReelNavigation } from "@/components/reels/ReelNavigation";
 import { ReelScrollControls } from "@/components/reels/ReelScrollControls";
 import { Json } from "@/integrations/supabase/types";
 import { useNavigate } from "react-router-dom";
@@ -143,12 +142,13 @@ const Reels = () => {
     })) || []
   );
 
-  console.log('Processed questions:', allQuestions);
-
   return (
     <div className="min-h-screen bg-black text-foreground overflow-hidden">
       <div className="fixed top-0 left-0 right-0 p-4 z-50 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm">
-        <button onClick={() => navigate(-1)} className="text-white/80 hover:text-white transition-colors">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="text-white/80 hover:text-white transition-colors"
+        >
           <ArrowLeft className="w-6 h-6" />
         </button>
       </div>
