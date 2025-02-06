@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, User } from "lucide-react";
+import { Loader2, User, Upload } from "lucide-react";
 
 interface Profile {
   username: string | null;
@@ -19,6 +19,7 @@ const Profile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -51,6 +52,51 @@ const Profile = () => {
 
     fetchProfile();
   }, [navigate, toast]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => ({ ...prev!, avatar_url: publicUrl }));
+      toast({
+        title: "Success",
+        description: "Profile picture updated successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error updating profile picture",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!profile) return;
@@ -101,12 +147,28 @@ const Profile = () => {
       <div className="container mx-auto max-w-4xl px-4 py-8">
         <div className="glass-card p-8">
           <div className="flex flex-col items-center space-y-4 mb-8">
-            <Avatar className="w-24 h-24">
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback>
-                <User className="w-12 h-12" />
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-24 h-24">
+                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarFallback>
+                  <User className="w-12 h-12" />
+                </AvatarFallback>
+              </Avatar>
+              <label 
+                htmlFor="avatar-upload" 
+                className="absolute bottom-0 right-0 p-1 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition-colors"
+              >
+                <Upload className="w-4 h-4 text-white" />
+                <input
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -133,7 +195,7 @@ const Profile = () => {
 
             <Button
               onClick={handleSave}
-              disabled={isSaving}
+              disabled={isSaving || isUploading}
               className="w-full"
             >
               {isSaving ? (

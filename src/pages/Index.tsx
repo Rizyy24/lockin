@@ -107,9 +107,11 @@ const Index = () => {
                 <UserPlus className="w-4 h-4" />
               </Button>
             </div>
-            
-            <div className="mt-4">
-              <h4 className="text-md font-semibold mb-2">Recent Posts</h4>
+          </div>
+          
+          <div className="glass-card p-6">
+            <h3 className="text-lg font-semibold mb-3">Recent Posts</h3>
+            <div className="space-y-4">
               <div className="glass-card p-4">
                 <p className="text-gray-400">No posts yet</p>
               </div>
