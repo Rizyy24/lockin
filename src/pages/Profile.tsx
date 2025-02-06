@@ -82,7 +82,7 @@ const Profile = () => {
 
       if (updateError) throw updateError;
 
-      setProfile(prev => ({ ...prev!, avatar_url: publicUrl }));
+      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
       toast({
         title: "Success",
         description: "Profile picture updated successfully",
@@ -176,7 +176,7 @@ const Profile = () => {
               <label className="text-sm font-medium text-white/80">Username</label>
               <Input
                 value={profile?.username || ''}
-                onChange={(e) => setProfile(prev => ({ ...prev!, username: e.target.value }))}
+                onChange={(e) => setProfile(prev => prev ? { ...prev, username: e.target.value } : null)}
                 className="mt-1"
                 placeholder="Enter your username"
               />
@@ -186,7 +186,7 @@ const Profile = () => {
               <label className="text-sm font-medium text-white/80">Bio</label>
               <Textarea
                 value={profile?.bio || ''}
-                onChange={(e) => setProfile(prev => ({ ...prev!, bio: e.target.value }))}
+                onChange={(e) => setProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
                 className="mt-1"
                 placeholder="Tell us about yourself"
                 rows={4}
