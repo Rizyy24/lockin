@@ -2,12 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigation } from "@/components/Navigation";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, User, Upload } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
+import { ProfileForm } from "@/components/profile/ProfileForm";
 
 interface Profile {
   username: string | null;
@@ -19,7 +17,6 @@ const Profile = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -52,51 +49,6 @@ const Profile = () => {
 
     fetchProfile();
   }, [navigate, toast]);
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName);
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-
-      if (updateError) throw updateError;
-
-      setProfile(prev => prev ? { ...prev, avatar_url: publicUrl } : null);
-      toast({
-        title: "Success",
-        description: "Profile picture updated successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error updating profile picture",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!profile) return;
@@ -147,67 +99,20 @@ const Profile = () => {
       <div className="container mx-auto max-w-4xl px-4 py-8">
         <div className="glass-card p-8">
           <div className="flex flex-col items-center space-y-4 mb-8">
-            <div className="relative">
-              <Avatar className="w-24 h-24">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback>
-                  <User className="w-12 h-12" />
-                </AvatarFallback>
-              </Avatar>
-              <label 
-                htmlFor="avatar-upload" 
-                className="absolute bottom-0 right-0 p-1 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition-colors"
-              >
-                <Upload className="w-4 h-4 text-white" />
-                <input
-                  id="avatar-upload"
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                  disabled={isUploading}
-                />
-              </label>
-            </div>
+            <ProfileAvatar 
+              avatarUrl={profile?.avatar_url || null}
+              onAvatarUpdate={(url) => setProfile(prev => prev ? { ...prev, avatar_url: url } : null)}
+            />
           </div>
 
-          <div className="space-y-6">
-            <div>
-              <label className="text-sm font-medium text-white/80">Username</label>
-              <Input
-                value={profile?.username || ''}
-                onChange={(e) => setProfile(prev => prev ? { ...prev, username: e.target.value } : null)}
-                className="mt-1"
-                placeholder="Enter your username"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-white/80">Bio</label>
-              <Textarea
-                value={profile?.bio || ''}
-                onChange={(e) => setProfile(prev => prev ? { ...prev, bio: e.target.value } : null)}
-                className="mt-1"
-                placeholder="Tell us about yourself"
-                rows={4}
-              />
-            </div>
-
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || isUploading}
-              className="w-full"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </div>
+          <ProfileForm
+            username={profile?.username || null}
+            bio={profile?.bio || null}
+            isSaving={isSaving}
+            onUsernameChange={(username) => setProfile(prev => prev ? { ...prev, username } : null)}
+            onBioChange={(bio) => setProfile(prev => prev ? { ...prev, bio } : null)}
+            onSave={handleSave}
+          />
         </div>
       </div>
       <Navigation />
