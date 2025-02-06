@@ -28,7 +28,7 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profile:profiles(username, avatar_url)
+          profile:profiles!friendships_user_id_fkey(username, avatar_url)
         `)
         .eq("friend_id", session?.user?.id)
         .eq("status", "pending");

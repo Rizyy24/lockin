@@ -24,18 +24,18 @@ const Leaderboard = () => {
     queryKey: ["leaderboard", activeTab],
     queryFn: async () => {
       if (activeTab === "global") {
-        const { data: userAuraData, error } = await supabase
+        const { data, error } = await supabase
           .from("user_aura")
           .select(`
             user_id,
             aura_points,
-            profile:profiles(username, avatar_url)
+            profile:profiles!user_aura_user_id_fkey(username, avatar_url)
           `)
           .order("aura_points", { ascending: false })
           .limit(100);
 
         if (error) throw error;
-        return userAuraData as LeaderboardEntry[];
+        return data as LeaderboardEntry[];
       } else {
         const { data: friendships, error: friendshipsError } = await supabase
           .from("friendships")
@@ -48,18 +48,18 @@ const Leaderboard = () => {
         const friendIds = friendships.map((f) => f.friend_id);
         friendIds.push(user?.id!);
 
-        const { data: userAuraData, error } = await supabase
+        const { data, error } = await supabase
           .from("user_aura")
           .select(`
             user_id,
             aura_points,
-            profile:profiles(username, avatar_url)
+            profile:profiles!user_aura_user_id_fkey(username, avatar_url)
           `)
           .in("user_id", friendIds)
           .order("aura_points", { ascending: false });
 
         if (error) throw error;
-        return userAuraData as LeaderboardEntry[];
+        return data as LeaderboardEntry[];
       }
     },
     enabled: !!user,
