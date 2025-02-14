@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useUser } from "@supabase/auth-helpers-react";
 import { ChatMessages } from "@/components/chat/ChatMessages";
@@ -25,20 +24,23 @@ const ChatLanding = ({ onStartChat }: { onStartChat: () => void }) => {
   const { data: friends = [] } = useQuery({
     queryKey: ["friends"],
     queryFn: async () => {
-      // Updated query format to properly join with profiles through friendships
       const { data, error } = await supabase
         .from("friendships")
         .select(`
-          profiles!friendships_friend_id_fkey (
-            username,
-            avatar_url
+          friend:friend_id(
+            profiles!profiles_id_fkey (
+              username,
+              avatar_url
+            )
           )
         `)
         .eq("user_id", user?.id)
         .eq("status", "accepted");
 
       if (error) throw error;
-      return data as Friend[];
+      return (data as any[]).map(item => ({
+        profiles: item.friend.profiles
+      })) as Friend[];
     },
     enabled: !!user,
   });

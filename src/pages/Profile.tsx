@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,40 +22,29 @@ const Profile = () => {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          navigate('/auth');
-          return;
-        }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate('/auth');
+        return;
+      }
 
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username, avatar_url, bio')
-          .eq('id', user.id)
-          .single();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username, avatar_url, bio')
+        .eq('id', user.id)
+        .single();
 
-        if (error) {
-          console.error('Error fetching profile:', error);
-          toast({
-            title: "Error fetching profile",
-            description: error.message,
-            variant: "destructive",
-          });
-          return;
-        }
-
-        setProfile(data);
-      } catch (error: any) {
-        console.error('Error in fetchProfile:', error);
+      if (error) {
         toast({
-          title: "Error",
-          description: "Failed to load profile",
+          title: "Error fetching profile",
+          description: error.message,
           variant: "destructive",
         });
-      } finally {
-        setIsLoading(false);
+        return;
       }
+
+      setProfile(data);
+      setIsLoading(false);
     };
 
     fetchProfile();
@@ -66,47 +54,36 @@ const Profile = () => {
     if (!profile) return;
 
     setIsSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      navigate('/auth');
+      return;
+    }
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          username: profile.username,
-          bio: profile.bio,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        username: profile.username,
+        bio: profile.bio,
+      })
+      .eq('id', user.id);
 
-      if (error) {
-        console.error('Error updating profile:', error);
-        toast({
-          title: "Error updating profile",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
+    setIsSaving(false);
 
+    if (error) {
       toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
-      });
-    } catch (error: any) {
-      console.error('Error in handleSave:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save profile changes",
+        title: "Error updating profile",
+        description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsSaving(false);
+      return;
     }
+
+    toast({
+      title: "Profile updated",
+      description: "Your profile has been successfully updated.",
+    });
   };
 
   if (isLoading) {

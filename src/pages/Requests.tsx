@@ -1,4 +1,3 @@
-
 import { useSession } from "@supabase/auth-helpers-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +11,7 @@ interface FriendRequest {
   friend_id: string;
   status: string;
   created_at: string;
-  sender: {
+  profiles: {
     username: string | null;
     avatar_url: string | null;
   } | null;
@@ -28,12 +27,8 @@ export default function Requests() {
       const { data, error } = await supabase
         .from("friendships")
         .select(`
-          id,
-          user_id,
-          friend_id,
-          status,
-          created_at,
-          sender:profiles!friendships_user_id_fkey(username, avatar_url)
+          *,
+          profiles!friendships_user_id_fkey (username, avatar_url)
         `)
         .eq("friend_id", session?.user?.id)
         .eq("status", "pending");
@@ -81,17 +76,17 @@ export default function Requests() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                  {request.sender?.avatar_url ? (
+                  {request.profiles?.avatar_url ? (
                     <img
-                      src={request.sender.avatar_url}
-                      alt={request.sender.username || ""}
+                      src={request.profiles.avatar_url}
+                      alt={request.profiles.username || ""}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
-                    <span className="text-xl">{request.sender?.username?.[0]?.toUpperCase()}</span>
+                    <span className="text-xl">{request.profiles?.username?.[0]?.toUpperCase()}</span>
                   )}
                 </div>
-                <span className="font-medium">{request.sender?.username}</span>
+                <span className="font-medium">{request.profiles?.username}</span>
               </div>
               <div className="flex gap-2">
                 <Button

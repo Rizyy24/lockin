@@ -1,26 +1,12 @@
-
 import { Navigation } from "@/components/Navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect } from "react";
 import { ReelQuestion } from "@/components/reels/ReelQuestion";
-import { ReelFlashcard } from "@/components/reels/ReelFlashcard";
 import { ReelScrollControls } from "@/components/reels/ReelScrollControls";
 import { ReelNavigation } from "@/components/reels/ReelNavigation";
-
-interface Question {
-  id: string;
-  content: {
-    term?: string;
-    definition?: string;
-  } | null;
-  type: 'multiple_choice' | 'flashcard';
-  options?: string[];
-  question?: string;
-  correct_answer: string;
-  created_at: string;
-}
+import { Json } from "@/integrations/supabase/types";
 
 const Reels = () => {
   const { toast } = useToast();
@@ -28,35 +14,44 @@ const Reels = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isScrolling, setIsScrolling] = useState(false);
 
-  const { data: questions, isLoading, error } = useQuery({
-    queryKey: ['study-content'],
+  const { data: reels, isLoading, error } = useQuery({
+    queryKey: ['study-reels'],
     queryFn: async () => {
-      console.log('Fetching study content...');
+      console.log('Fetching reels...');
       const { data, error } = await supabase
-        .from('questions')
-        .select('*')
+        .from('study_reels')
+        .select(`
+          *,
+          questions (
+            id,
+            question,
+            options,
+            type,
+            correct_answer
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching content:', error);
+        console.error('Error fetching reels:', error);
         toast({
-          title: "Error loading content",
+          title: "Error loading reels",
           description: error.message,
           variant: "destructive",
         });
         throw error;
       }
 
-      console.log('Fetched content:', data);
-      return data as Question[];
+      console.log('Fetched reels:', data);
+      return data;
     },
   });
 
   const handleScroll = (direction: 'up' | 'down') => {
-    if (isScrolling || !containerRef.current || !questions?.length) return;
+    if (isScrolling || !containerRef.current || !reels?.length) return;
 
     const newIndex = direction === 'down' ? currentIndex + 1 : currentIndex - 1;
-    if (newIndex >= 0 && newIndex < questions.length) {
+    if (newIndex >= 0 && newIndex < reels.length) {
       setIsScrolling(true);
       setCurrentIndex(newIndex);
       
@@ -99,11 +94,20 @@ const Reels = () => {
     }, { once: true });
   };
 
+  const convertOptions = (options: Json | null): string[] => {
+    if (!options) return [];
+    if (Array.isArray(options)) {
+      return options.map(opt => String(opt));
+    }
+    console.warn('Invalid options format:', options);
+    return [];
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
         <div className="glass-card p-8">
-          Loading study content...
+          Loading study reels...
         </div>
       </div>
     );
@@ -113,21 +117,28 @@ const Reels = () => {
     return (
       <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
         <div className="glass-card p-8 text-red-500">
-          Error loading content. Please try again.
+          Error loading reels. Please try again.
         </div>
       </div>
     );
   }
 
-  if (!questions?.length) {
+  if (!reels?.length) {
     return (
       <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
         <div className="glass-card p-8">
-          No content available. Try uploading a document first!
+          No reels available. Try uploading a document first!
         </div>
       </div>
     );
   }
+
+  const allQuestions = reels.flatMap(reel => 
+    reel.questions?.map(question => ({
+      ...question,
+      options: convertOptions(question.options)
+    })) || []
+  );
 
   return (
     <div className="min-h-screen bg-black text-foreground overflow-hidden">
@@ -139,33 +150,23 @@ const Reels = () => {
         className="h-screen overflow-y-auto snap-y snap-mandatory"
         style={{ scrollSnapType: 'y mandatory' }}
       >
-        {questions.map((item) => (
-          <div 
-            key={item.id}
-            className="h-screen snap-start snap-always"
-          >
-            {item.type === 'multiple_choice' && item.question ? (
-              <ReelQuestion question={{
-                id: item.id,
-                question: item.question,
-                options: item.options || [],
-                correct_answer: item.correct_answer
-              }} />
-            ) : (
-              <ReelFlashcard content={{
-                term: item.content?.term || '',
-                definition: item.content?.definition || '',
-                type: 'flashcard'
-              }} />
-            )}
-          </div>
+        {allQuestions.map((question) => (
+          <ReelQuestion 
+            key={question.id} 
+            question={{
+              id: question.id,
+              question: question.question,
+              options: question.options,
+              correct_answer: question.correct_answer
+            }} 
+          />
         ))}
       </div>
       
       <ReelScrollControls
         onScroll={handleScroll}
         isAtStart={currentIndex === 0}
-        isAtEnd={questions ? currentIndex === questions.length - 1 : true}
+        isAtEnd={allQuestions ? currentIndex === allQuestions.length - 1 : true}
       />
       
       <Navigation />

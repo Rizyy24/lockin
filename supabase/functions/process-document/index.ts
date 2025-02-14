@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 import { corsHeaders } from '../_shared/cors.ts'
 
@@ -33,28 +32,14 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are an AI that generates study materials from documents. Given the text below, generate:
+            text: `You are an AI that generates study questions based on study material. Given the text below, create 5 multiple-choice questions. Each question should test understanding of key concepts from the content.
 
-1. Multiple Choice Questions (MCQs) - 5 MCQs with four answer choices each (one correct answer).
-2. Flashcards - 5 key terms and their definitions from the text.
-
-Format your response as a valid JSON object with this exact structure:
+Format your response as a valid JSON array where each question object has these exact fields:
 {
-  "multiple_choice": [
-    {
-      "question": "the question text",
-      "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
-      "correct_answer": "the correct option that matches exactly one from the options array",
-      "type": "multiple_choice"
-    }
-  ],
-  "flashcards": [
-    {
-      "term": "key term from the text",
-      "definition": "definition of the term",
-      "type": "flashcard"
-    }
-  ]
+  "question": "the question text",
+  "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
+  "correct_answer": "the correct option that matches exactly one from the options array",
+  "type": "multiple_choice"
 }
 
 Study Material to analyze: ${truncatedContent}`
@@ -85,43 +70,52 @@ Study Material to analyze: ${truncatedContent}`
     const responseText = data.candidates[0].content.parts[0].text
     console.log('Raw response text:', responseText)
 
+    // Extract JSON array from response with improved error handling
     try {
-      // Find the JSON object in the response
-      const jsonStart = responseText.indexOf('{')
-      const jsonEnd = responseText.lastIndexOf('}') + 1
+      // Find the JSON array in the response
+      const jsonStart = responseText.indexOf('[')
+      const jsonEnd = responseText.lastIndexOf(']') + 1
       
       if (jsonStart === -1 || jsonEnd === 0) {
-        console.error('No JSON object found in response text:', responseText)
-        throw new Error('No JSON object found in response')
+        console.error('No JSON array found in response text:', responseText)
+        throw new Error('No JSON array found in response')
       }
 
-      // Extract and clean the JSON string
       let jsonStr = responseText.slice(jsonStart, jsonEnd)
       
-      // Remove new lines and extra spaces
-      jsonStr = jsonStr.replace(/\n/g, ' ').replace(/\s+/g, ' ')
-      
-      // Handle unicode escape sequences properly
-      jsonStr = jsonStr.replace(/\\u([0-9a-fA-F]{4})/g, (match, p1) => 
-        String.fromCharCode(parseInt(p1, 16))
-      )
-      
-      // Clean up any remaining escaped characters
+      // Clean up common formatting issues
       jsonStr = jsonStr
-        .replace(/\\\\/g, '\\')  // Handle escaped backslashes
-        .replace(/\\"/g, '"')    // Handle escaped quotes
-        .replace(/\\([^"\\\/bfnrtu])/g, '$1') // Remove unnecessary escapes
-      
+        // Remove any line breaks and extra spaces
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        // Handle escaped quotes properly
+        .replace(/\\"/g, '"')
+        // Remove any invalid escape sequences
+        .replace(/\\([^"\\\/bfnrtu])/g, '$1')
+        // Remove any remaining backslashes before non-special characters
+        .replace(/\\(?!["\\/bfnrtu])/g, '')
+        // Properly escape Unicode sequences
+        .replace(/\\u([0-9a-fA-F]{4})/g, (match, p1) => 
+          String.fromCharCode(parseInt(p1, 16))
+        )
+
       console.log('Cleaned JSON string:', jsonStr)
       
-      const parsedData = JSON.parse(jsonStr)
+      const questions = JSON.parse(jsonStr)
 
-      // Validate data format
-      if (!parsedData.multiple_choice || !parsedData.flashcards) {
-        throw new Error('Invalid response format: missing required sections')
+      // Validate questions format
+      if (!Array.isArray(questions)) {
+        throw new Error('Response is not an array')
       }
 
-      // Create document
+      questions.forEach((q, index) => {
+        if (!q.question || !Array.isArray(q.options) || !q.correct_answer || !q.options.includes(q.correct_answer)) {
+          console.error('Invalid question format:', q)
+          throw new Error(`Invalid question format at index ${index}`)
+        }
+      })
+
+      // Create study reel
       const supabaseClient = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -132,42 +126,37 @@ Study Material to analyze: ${truncatedContent}`
         throw new Error('Not authenticated')
       }
 
-      const { data: doc, error: docError } = await supabaseClient
-        .from('documents')
+      const { data: reel, error: reelError } = await supabaseClient
+        .from('study_reels')
         .insert({
-          name: title,
-          content: truncatedContent,
-          user_id: user.id
+          title: title,
+          content: truncatedContent.slice(0, 500) + '...',
+          type: 'quiz',
+          user_id: user.id,
+          source_upload_id: uploadId
         })
         .select()
         .single()
 
-      if (docError) {
-        throw docError
+      if (reelError) {
+        throw reelError
       }
 
-      // Insert all questions and flashcards
-      const allContent = [
-        ...parsedData.multiple_choice.map(q => ({
-          type: 'multiple_choice',
-          content: q,
-          document_id: doc.id,
-          user_id: user.id
-        })),
-        ...parsedData.flashcards.map(f => ({
-          type: 'flashcard',
-          content: f,
-          document_id: doc.id,
-          user_id: user.id
-        }))
-      ]
-
-      const { error: contentError } = await supabaseClient
+      // Insert questions
+      const { error: questionsError } = await supabaseClient
         .from('questions')
-        .insert(allContent)
+        .insert(
+          questions.map(q => ({
+            reel_id: reel.id,
+            question: q.question,
+            options: q.options,
+            correct_answer: q.correct_answer,
+            type: 'multiple_choice'
+          }))
+        )
 
-      if (contentError) {
-        throw contentError
+      if (questionsError) {
+        throw questionsError
       }
 
       return new Response(JSON.stringify({ success: true }), {

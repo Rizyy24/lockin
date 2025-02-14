@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useUser } from "@supabase/auth-helpers-react";
 import { useQuery } from "@tanstack/react-query";
@@ -30,7 +29,7 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles (username, avatar_url)
+            profiles!user_aura_user_id_fkey (username, avatar_url)
           `)
           .order("aura_points", { ascending: false })
           .limit(100);
@@ -54,7 +53,7 @@ const Leaderboard = () => {
           .select(`
             user_id,
             aura_points,
-            profiles (username, avatar_url)
+            profiles!user_aura_user_id_fkey (username, avatar_url)
           `)
           .in("user_id", friendIds)
           .order("aura_points", { ascending: false });
