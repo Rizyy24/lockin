@@ -9,6 +9,19 @@ import { ReelFlashcard } from "@/components/reels/ReelFlashcard";
 import { ReelScrollControls } from "@/components/reels/ReelScrollControls";
 import { ReelNavigation } from "@/components/reels/ReelNavigation";
 
+interface Question {
+  id: string;
+  content: {
+    term?: string;
+    definition?: string;
+  } | null;
+  type: 'multiple_choice' | 'flashcard';
+  options?: string[];
+  question?: string;
+  correct_answer: string;
+  created_at: string;
+}
+
 const Reels = () => {
   const { toast } = useToast();
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -35,7 +48,7 @@ const Reels = () => {
       }
 
       console.log('Fetched content:', data);
-      return data;
+      return data as Question[];
     },
   });
 
@@ -131,10 +144,19 @@ const Reels = () => {
             key={item.id}
             className="h-screen snap-start snap-always"
           >
-            {item.type === 'multiple_choice' ? (
-              <ReelQuestion question={item.content} />
+            {item.type === 'multiple_choice' && item.question ? (
+              <ReelQuestion question={{
+                id: item.id,
+                question: item.question,
+                options: item.options || [],
+                correct_answer: item.correct_answer
+              }} />
             ) : (
-              <ReelFlashcard content={item.content} />
+              <ReelFlashcard content={{
+                term: item.content?.term || '',
+                definition: item.content?.definition || '',
+                type: 'flashcard'
+              }} />
             )}
           </div>
         ))}

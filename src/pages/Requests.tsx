@@ -29,7 +29,7 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profiles (username, avatar_url)
+          profiles:user_id(username, avatar_url)
         `)
         .eq("friend_id", session?.user?.id)
         .eq("status", "pending");
