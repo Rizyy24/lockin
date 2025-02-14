@@ -1,3 +1,4 @@
+
 import { useSession } from "@supabase/auth-helpers-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +29,7 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profiles!friendships_user_id_fkey (username, avatar_url)
+          profiles (username, avatar_url)
         `)
         .eq("friend_id", session?.user?.id)
         .eq("status", "pending");
