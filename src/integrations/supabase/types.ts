@@ -142,6 +142,7 @@ export type Database = {
       }
       questions: {
         Row: {
+          content: Json | null
           correct_answer: string
           created_at: string
           id: string
@@ -151,6 +152,7 @@ export type Database = {
           type: string
         }
         Insert: {
+          content?: Json | null
           correct_answer: string
           created_at?: string
           id?: string
@@ -160,6 +162,7 @@ export type Database = {
           type: string
         }
         Update: {
+          content?: Json | null
           correct_answer?: string
           created_at?: string
           id?: string
