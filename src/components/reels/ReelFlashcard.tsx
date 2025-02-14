@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Flip } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 
 interface FlashcardContent {
   term: string;
@@ -37,7 +37,7 @@ export const ReelFlashcard = ({ content }: ReelFlashcardProps) => {
           variant="outline"
           onClick={() => setIsFlipped(!isFlipped)}
         >
-          <Flip className="w-4 h-4" />
+          <RotateCcw className="w-4 h-4" />
           Flip Card
         </Button>
       </Card>
