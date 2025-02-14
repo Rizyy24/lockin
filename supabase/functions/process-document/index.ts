@@ -95,17 +95,23 @@ Study Material to analyze: ${truncatedContent}`
         throw new Error('No JSON object found in response')
       }
 
+      // Extract and clean the JSON string
       let jsonStr = responseText.slice(jsonStart, jsonEnd)
+      
+      // Remove new lines and extra spaces
+      jsonStr = jsonStr.replace(/\n/g, ' ').replace(/\s+/g, ' ')
+      
+      // Handle unicode escape sequences properly
+      jsonStr = jsonStr.replace(/\\u([0-9a-fA-F]{4})/g, (match, p1) => 
+        String.fromCharCode(parseInt(p1, 16))
+      )
+      
+      // Clean up any remaining escaped characters
       jsonStr = jsonStr
-        .replace(/\n/g, ' ')
-        .replace(/\s+/g, ' ')
-        .replace(/\\"/g, '"')
-        .replace(/\\([^"\\\/bfnrtu])/g, '$1')
-        .replace(/\\(?!["\\/bfnrtu])/g, '')
-        .replace(/\\u([0-9a-fA-F]{4})/g, (match, p1) => 
-          String.fromCharCode(parseInt(p1, 16))
-        )
-
+        .replace(/\\\\/g, '\\')  // Handle escaped backslashes
+        .replace(/\\"/g, '"')    // Handle escaped quotes
+        .replace(/\\([^"\\\/bfnrtu])/g, '$1') // Remove unnecessary escapes
+      
       console.log('Cleaned JSON string:', jsonStr)
       
       const parsedData = JSON.parse(jsonStr)
