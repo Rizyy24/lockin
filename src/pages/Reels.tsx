@@ -1,3 +1,4 @@
+
 import { Navigation } from "@/components/Navigation";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,10 +49,12 @@ const Reels = () => {
   });
 
   const handleScroll = (direction: 'up' | 'down') => {
-    if (isScrolling || !containerRef.current || !reels?.length) return;
+    if (isScrolling || !containerRef.current) return;
 
+    const totalItems = reels?.length ? allQuestions.length : sampleQuestions.length;
     const newIndex = direction === 'down' ? currentIndex + 1 : currentIndex - 1;
-    if (newIndex >= 0 && newIndex < reels.length) {
+    
+    if (newIndex >= 0 && newIndex < totalItems) {
       setIsScrolling(true);
       setCurrentIndex(newIndex);
       
@@ -103,6 +106,42 @@ const Reels = () => {
     return [];
   };
 
+  const sampleQuestions = [
+    {
+      id: 'sample-1',
+      question: "What is JavaScript's primary use in web development?",
+      options: [
+        "A) Styling web pages",
+        "B) Adding interactivity to websites",
+        "C) Creating databases",
+        "D) Server configuration"
+      ],
+      correct_answer: "B) Adding interactivity to websites"
+    },
+    {
+      id: 'sample-2',
+      question: "What is the capital of France?",
+      options: [
+        "A) London",
+        "B) Berlin",
+        "C) Paris",
+        "D) Madrid"
+      ],
+      correct_answer: "C) Paris"
+    },
+    {
+      id: 'sample-3',
+      question: "What is the function of photosynthesis in plants?",
+      options: [
+        "A) To produce oxygen and glucose",
+        "B) To consume oxygen",
+        "C) To release carbon dioxide",
+        "D) To break down glucose"
+      ],
+      correct_answer: "A) To produce oxygen and glucose"
+    }
+  ];
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
@@ -123,22 +162,14 @@ const Reels = () => {
     );
   }
 
-  if (!reels?.length) {
-    return (
-      <div className="min-h-screen bg-black text-foreground flex items-center justify-center">
-        <div className="glass-card p-8">
-          No reels available. Try uploading a document first!
-        </div>
-      </div>
-    );
-  }
-
-  const allQuestions = reels.flatMap(reel => 
-    reel.questions?.map(question => ({
-      ...question,
-      options: convertOptions(question.options)
-    })) || []
-  );
+  const allQuestions = reels?.length
+    ? reels.flatMap(reel => 
+        reel.questions?.map(question => ({
+          ...question,
+          options: convertOptions(question.options)
+        })) || []
+      )
+    : sampleQuestions;
 
   return (
     <div className="min-h-screen bg-black text-foreground overflow-hidden">
@@ -166,7 +197,7 @@ const Reels = () => {
       <ReelScrollControls
         onScroll={handleScroll}
         isAtStart={currentIndex === 0}
-        isAtEnd={allQuestions ? currentIndex === allQuestions.length - 1 : true}
+        isAtEnd={currentIndex === allQuestions.length - 1}
       />
       
       <Navigation />
