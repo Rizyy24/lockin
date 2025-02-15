@@ -12,6 +12,7 @@ interface FriendRequest {
   friend_id: string;
   status: string;
   created_at: string;
+  updated_at: string;
   profiles: {
     username: string | null;
     avatar_url: string | null;
@@ -29,7 +30,7 @@ export default function Requests() {
         .from("friendships")
         .select(`
           *,
-          profiles:user_id(username, avatar_url)
+          profiles!friendships_user_id_fkey(username, avatar_url)
         `)
         .eq("friend_id", session?.user?.id)
         .eq("status", "pending");
