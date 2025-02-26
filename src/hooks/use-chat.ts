@@ -44,7 +44,16 @@ export const useChat = (userId: string) => {
 
         if (error) {
           console.error("Edge function error:", error);
-          throw error;
+          // Check if it's a service unavailable error (status 503)
+          if (error.status === 503) {
+            throw new Error("The AI service is temporarily unavailable. Please try again later or contact support.");
+          }
+          throw new Error(error.message || "Failed to get AI response");
+        }
+
+        // Check for error in the response data
+        if (data?.error) {
+          throw new Error(data.error);
         }
 
         if (!data?.response) {

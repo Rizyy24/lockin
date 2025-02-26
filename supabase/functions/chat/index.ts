@@ -81,21 +81,35 @@ serve(async (req) => {
       }),
     });
 
+    const responseData = await llamaResponse.json();
+
     if (!llamaResponse.ok) {
-      const errorData = await llamaResponse.json();
-      console.error('Llama API error response:', errorData);
-      throw new Error(`Llama API error: ${JSON.stringify(errorData)}`);
+      console.error('Llama API error response:', responseData);
+      
+      // Check for specific error types
+      if (responseData?.detail === 'Insufficient balance.') {
+        return new Response(
+          JSON.stringify({ 
+            error: 'The AI service is temporarily unavailable. Please try again later or contact support.' 
+          }),
+          { 
+            status: 503,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      
+      throw new Error(`Llama API error: ${JSON.stringify(responseData)}`);
     }
 
-    const data = await llamaResponse.json();
-    console.log('Raw Llama response:', JSON.stringify(data, null, 2));
+    console.log('Raw Llama response:', JSON.stringify(responseData, null, 2));
 
-    if (!data?.choices?.[0]?.message?.content) {
-      console.error('Invalid Llama response structure:', data);
+    if (!responseData?.choices?.[0]?.message?.content) {
+      console.error('Invalid response structure:', responseData);
       throw new Error('Invalid response structure from Llama API');
     }
 
-    const response = data.choices[0].message.content;
+    const response = responseData.choices[0].message.content;
     
     if (typeof response !== 'string' || response.trim().length === 0) {
       console.error('Invalid response content:', response);
@@ -112,7 +126,7 @@ serve(async (req) => {
     console.error('Error in chat function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error.message || 'An unexpected error occurred',
         details: error.stack 
       }),
       { 
