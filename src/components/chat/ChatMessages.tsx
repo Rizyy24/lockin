@@ -1,3 +1,4 @@
+
 import { useEffect, useRef } from "react";
 import { ChatMessage } from "./ChatMessage";
 import { ScrollArea } from "@/components/ui/scroll-area";

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,11 +43,13 @@ export const useChat = (userId: string) => {
         });
 
         if (error) {
-          // Check if it's a quota exceeded error (status 429)
-          if (error.status === 429) {
-            throw new Error("AI service is temporarily unavailable due to high demand. Please try again later.");
-          }
+          console.error("Edge function error:", error);
           throw error;
+        }
+
+        if (!data?.response) {
+          console.error("Invalid response from Llama:", data);
+          throw new Error("Invalid response from AI. Please try again.");
         }
 
         // Save AI response
@@ -61,7 +64,7 @@ export const useChat = (userId: string) => {
         if (aiMessageError) throw aiMessageError;
 
         return data.response;
-      } catch (error) {
+      } catch (error: any) {
         // If there was an error with the AI response, we should delete the user's message
         await supabase
           .from("chat_messages")
@@ -70,14 +73,14 @@ export const useChat = (userId: string) => {
           .eq("content", message)
           .eq("is_bot", false);
           
-        throw error;
+        throw new Error(error.message || "Failed to get AI response. Please try again.");
       }
     },
     onSuccess: () => {
       setInput("");
       queryClient.invalidateQueries({ queryKey: ["chat-messages", userId] });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Chat error:", error);
       toast({
         title: "Error",
