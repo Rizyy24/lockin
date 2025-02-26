@@ -1,5 +1,8 @@
+
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+
+const llamaApiKey = Deno.env.get('LLAMA_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,93 +45,60 @@ serve(async (req) => {
 
     console.log('Chat history fetched:', chatHistory);
 
-    // Format messages for Gemini
+    // Format messages for Llama
     const formattedHistory = (chatHistory || []).map(msg => ({
-      role: msg.is_bot ? 'model' : 'user',
-      parts: [{ text: msg.content }]
+      role: msg.is_bot ? 'assistant' : 'user',
+      content: msg.content
     }));
 
     // Add current message
     const messages = [
       {
+        role: 'system',
+        content: 'You are a friendly and encouraging study buddy. Your role is to help students understand their study materials, provide clear explanations, and make learning engaging. Keep responses concise but informative. Always maintain a supportive and positive tone.'
+      },
+      ...formattedHistory,
+      {
         role: 'user',
-        parts: [{ text: message }]
+        content: message
       }
     ];
 
-    if (formattedHistory.length > 0) {
-      messages.unshift(...formattedHistory);
-    }
+    console.log('Sending messages to Llama:', messages);
 
-    console.log('Sending messages to Gemini:', messages);
-
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY is not configured');
-    }
-
-    const geminiResponse = await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent', {
+    const llamaResponse = await fetch('https://api.llama-api.com/chat/completions', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${llamaApiKey}`,
         'Content-Type': 'application/json',
-        'x-goog-api-key': GEMINI_API_KEY,
       },
       body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: 'You are a friendly and encouraging study buddy. Your role is to help students understand their study materials, provide clear explanations, and make learning engaging. Keep responses concise but informative. Always maintain a supportive and positive tone.' }]
-          },
-          ...messages
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
+        model: 'llama-2-70b-chat',
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 1024,
       }),
     });
 
-    if (!geminiResponse.ok) {
-      const errorData = await geminiResponse.json();
-      console.error('Gemini API error response:', errorData);
-      throw new Error(`Gemini API error: ${JSON.stringify(errorData)}`);
+    if (!llamaResponse.ok) {
+      const errorData = await llamaResponse.json();
+      console.error('Llama API error response:', errorData);
+      throw new Error(`Llama API error: ${JSON.stringify(errorData)}`);
     }
 
-    const data = await geminiResponse.json();
-    console.log('Raw Gemini response:', JSON.stringify(data, null, 2));
+    const data = await llamaResponse.json();
+    console.log('Raw Llama response:', JSON.stringify(data, null, 2));
 
-    // Enhanced response validation
-    if (!data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.error('Invalid Gemini response structure:', data);
-      throw new Error('Invalid response structure from Gemini API');
+    if (!data?.choices?.[0]?.message?.content) {
+      console.error('Invalid Llama response structure:', data);
+      throw new Error('Invalid response structure from Llama API');
     }
 
-    const response = data.candidates[0].content.parts[0].text;
+    const response = data.choices[0].message.content;
     
-    // Additional validation for response content
     if (typeof response !== 'string' || response.trim().length === 0) {
       console.error('Invalid response content:', response);
-      throw new Error('Invalid or empty response from Gemini API');
+      throw new Error('Invalid or empty response from Llama API');
     }
 
     console.log('Processed response:', response);
