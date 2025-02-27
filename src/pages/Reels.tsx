@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import { ReelNavigation } from "@/components/reels/ReelNavigation";
@@ -30,7 +29,6 @@ const Reels = () => {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const { toast } = useToast();
 
-  // Fetch study reels
   const { data: reels = [], isLoading: isLoadingReels } = useQuery({
     queryKey: ["study-reels"],
     queryFn: async () => {
@@ -44,7 +42,6 @@ const Reels = () => {
     },
   });
 
-  // Fetch questions for the current reel
   const { data: questions = [], isLoading: isLoadingQuestions } = useQuery({
     queryKey: ["reel-questions", reels[currentReelIndex]?.id],
     queryFn: async () => {
@@ -67,7 +64,6 @@ const Reels = () => {
       setSelectedAnswer(null);
       setIsCorrect(null);
     } else {
-      // Completed all questions in this reel
       toast({
         title: "Reel Complete!",
         description: "You've answered all questions in this study reel.",
@@ -83,25 +79,33 @@ const Reels = () => {
     }
   };
 
-  const handleAnswerSelected = (answer: string) => {
+  const handleAnswerSelected = async (answer: string) => {
     setSelectedAnswer(answer);
     
     if (questions[currentQuestionIndex]) {
       const correct = answer === questions[currentQuestionIndex].correct_answer;
       setIsCorrect(correct);
       
-      // Save the answer to the database
-      supabase.from("user_answers").insert({
-        question_id: questions[currentQuestionIndex].id,
-        answer: answer,
-        is_correct: correct
-      }).then(({ error }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { error } = await supabase.from("user_answers").insert({
+          question_id: questions[currentQuestionIndex].id,
+          answer: answer,
+          is_correct: correct,
+          user_id: user.id
+        });
+        
         if (error) {
           console.error("Failed to save answer:", error);
+          toast({
+            title: "Error",
+            description: "Failed to save your answer",
+            variant: "destructive"
+          });
         }
-      });
+      }
       
-      // Show feedback toast
       toast({
         title: correct ? "Correct!" : "Incorrect",
         description: correct 
@@ -130,13 +134,11 @@ const Reels = () => {
     }
   };
 
-  // Reset selected answer when questions change
   useEffect(() => {
     setSelectedAnswer(null);
     setIsCorrect(null);
   }, [currentQuestionIndex, currentReelIndex]);
 
-  // Loading state
   if (isLoadingReels || (reels.length > 0 && isLoadingQuestions)) {
     return (
       <div className="min-h-screen bg-black text-foreground overflow-hidden">
@@ -149,7 +151,6 @@ const Reels = () => {
     );
   }
 
-  // No reels available
   if (reels.length === 0) {
     return (
       <div className="min-h-screen bg-black text-foreground overflow-hidden">
@@ -166,7 +167,6 @@ const Reels = () => {
     );
   }
 
-  // No questions available for the current reel
   if (questions.length === 0) {
     return (
       <div className="min-h-screen bg-black text-foreground overflow-hidden">

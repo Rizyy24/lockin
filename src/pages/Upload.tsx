@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Link } from "react-router-dom";
@@ -50,6 +49,13 @@ const Upload = () => {
 
     try {
       setIsUploading(true);
+
+      // Get the current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        throw new Error('Authentication required');
+      }
       
       // 1. Upload file to Supabase storage
       const fileExt = file.name.split('.').pop();
@@ -69,7 +75,8 @@ const Upload = () => {
         .insert({
           file_name: file.name,
           file_path: filePath,
-          file_type: file.type
+          file_type: file.type,
+          user_id: user.id  // Add the user_id field
         })
         .select()
         .single();
@@ -138,7 +145,7 @@ const Upload = () => {
       });
     }
   };
-  
+
   return (
     <div className="min-h-screen bg-black text-foreground p-6 page-transition">
       <div className="fixed top-0 left-0 right-0 p-4">
