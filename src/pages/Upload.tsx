@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Link } from "react-router-dom";
@@ -24,6 +25,36 @@ const Upload = () => {
         setTitle(fileName.split('.')[0]);
       }
     }
+  };
+
+  const extractTextFromFile = async (file: File): Promise<string> => {
+    // For plain text files, just read the text content
+    if (file.type === 'text/plain') {
+      return await file.text();
+    }
+    
+    // For PDFs, we would need PDF.js to extract text properly
+    // This is a simplified approach for now
+    if (file.type === 'application/pdf') {
+      try {
+        return await file.text();
+      } catch (error) {
+        console.error("PDF text extraction error:", error);
+        return "PDF text extraction not fully supported yet. Please upload plain text files for best results.";
+      }
+    }
+    
+    // For Word documents and other formats
+    if (file.type.includes('document') || file.type.includes('text')) {
+      try {
+        return await file.text();
+      } catch (error) {
+        console.error("Document text extraction error:", error);
+        return "Document text extraction limited. Please upload plain text files for best results.";
+      }
+    }
+    
+    return "File format not supported for text extraction. Please upload text files.";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,7 +107,7 @@ const Upload = () => {
           file_name: file.name,
           file_path: filePath,
           file_type: file.type,
-          user_id: user.id  // Add the user_id field
+          user_id: user.id
         })
         .select()
         .single();
@@ -88,27 +119,23 @@ const Upload = () => {
       setIsUploading(false);
       toast({
         title: "Upload Complete",
-        description: "Document uploaded successfully. Processing content..."
+        description: "Document uploaded successfully. Extracting content..."
       });
       
-      // 3. Process the document to extract text and generate questions
+      // 3. Extract text content from the document
       setIsProcessing(true);
       
       // Extract text from document
-      let fileContent = "";
+      const fileContent = await extractTextFromFile(file);
       
-      // For text-based files, read the content
-      if (file.type === 'text/plain' || file.type === 'application/pdf' || 
-          file.type.includes('document') || file.type.includes('text')) {
-        
-        const { data } = await supabase.storage
-          .from('documents')
-          .download(filePath);
-        
-        if (data) {
-          fileContent = await data.text();
-        }
+      if (!fileContent || fileContent.trim() === '') {
+        throw new Error("Could not extract text content from the document");
       }
+      
+      toast({
+        title: "Content Extracted",
+        description: "Generating questions from content..."
+      });
       
       // 4. Use the edge function to process content and generate questions
       const { data: processedData, error: processError } = await supabase.functions
@@ -158,7 +185,7 @@ const Upload = () => {
         <div className="glass-card p-8">
           <h1 className="text-2xl font-semibold text-white mb-4">Upload Documents</h1>
           <p className="text-sm text-white/60 mb-6">
-            Share your PDF and text files to generate study questions
+            Share your PDF and text files to generate study questions from your content
           </p>
           
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -203,7 +230,7 @@ const Upload = () => {
                   <label htmlFor="file-upload" className="cursor-pointer">
                     <UploadIcon className="mx-auto h-8 w-8 text-white/40" />
                     <p className="text-white/60 mt-2">Click to select a file</p>
-                    <p className="text-xs text-white/40 mt-1">PDF, TXT, DOC supported</p>
+                    <p className="text-xs text-white/40 mt-1">TXT files work best for content extraction</p>
                   </label>
                 )}
               </div>
@@ -214,7 +241,7 @@ const Upload = () => {
               disabled={!file || isUploading || isProcessing} 
               className="w-full"
             >
-              {isUploading ? "Uploading..." : isProcessing ? "Processing..." : "Upload & Generate Questions"}
+              {isUploading ? "Uploading..." : isProcessing ? "Processing Content..." : "Upload & Generate Questions"}
             </Button>
           </form>
         </div>

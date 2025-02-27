@@ -31,6 +31,8 @@ serve(async (req) => {
     }
 
     console.log('Making request to OpenAI API...');
+    console.log('Content excerpt:', truncatedContent.slice(0, 200) + '...');
+    
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -41,7 +43,7 @@ serve(async (req) => {
         model: "gpt-4o-mini",
         messages: [{
           role: "system",
-          content: `You are an AI that generates study questions based on study material. Given the text below, create 5 multiple-choice questions. Each question should test understanding of key concepts from the content.
+          content: `You are an AI that generates study questions based on study material. Given the text below, create 5 multiple-choice questions that test understanding of key concepts from the content. Focus on the actual knowledge and information in the content, not metadata like page numbers or document format.
 
 Format your response as a valid JSON array where each question object has these exact fields:
 {
