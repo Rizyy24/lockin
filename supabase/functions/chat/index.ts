@@ -3,7 +3,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const llamaApiKey = Deno.env.get('LLAMA_API_KEY');
+const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,7 +46,7 @@ serve(async (req) => {
 
     console.log('Chat history fetched:', chatHistory);
 
-    // Format messages for Llama
+    // Format messages for OpenAI
     const formattedHistory = (chatHistory || []).map(msg => ({
       role: msg.is_bot ? 'assistant' : 'user',
       content: msg.content
@@ -65,32 +65,32 @@ serve(async (req) => {
       }
     ];
 
-    console.log('Sending messages to Llama:', messages);
+    console.log('Sending messages to OpenAI:', messages);
 
-    const llamaResponse = await fetch('https://api.llama-api.com/chat/completions', {
+    const openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${llamaApiKey}`,
+        'Authorization': `Bearer ${openAiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-2-70b-chat',
+        model: 'gpt-4o-mini',
         messages: messages,
         temperature: 0.7,
         max_tokens: 1024,
       }),
     });
 
-    const responseData = await llamaResponse.json();
+    const responseData = await openAiResponse.json();
 
-    if (!llamaResponse.ok) {
-      console.error('Llama API error response:', responseData);
+    if (!openAiResponse.ok) {
+      console.error('OpenAI API error response:', responseData);
       
-      // Check for specific error types
-      if (responseData?.detail === 'Insufficient balance.') {
+      // Handle rate limit errors
+      if (responseData?.error?.type === 'insufficient_quota' || responseData?.error?.code === 'rate_limit_exceeded') {
         return new Response(
           JSON.stringify({ 
-            error: 'The AI service is temporarily unavailable. Please try again later or contact support.' 
+            error: 'The AI service is temporarily unavailable. Please try again later or check your API quota.' 
           }),
           { 
             status: 503,
@@ -99,21 +99,21 @@ serve(async (req) => {
         );
       }
       
-      throw new Error(`Llama API error: ${JSON.stringify(responseData)}`);
+      throw new Error(`OpenAI API error: ${JSON.stringify(responseData.error)}`);
     }
 
-    console.log('Raw Llama response:', JSON.stringify(responseData, null, 2));
+    console.log('Raw OpenAI response:', JSON.stringify(responseData, null, 2));
 
     if (!responseData?.choices?.[0]?.message?.content) {
       console.error('Invalid response structure:', responseData);
-      throw new Error('Invalid response structure from Llama API');
+      throw new Error('Invalid response structure from OpenAI API');
     }
 
     const response = responseData.choices[0].message.content;
     
     if (typeof response !== 'string' || response.trim().length === 0) {
       console.error('Invalid response content:', response);
-      throw new Error('Invalid or empty response from Llama API');
+      throw new Error('Invalid or empty response from OpenAI API');
     }
 
     console.log('Processed response:', response);

@@ -57,7 +57,7 @@ export const useChat = (userId: string) => {
         }
 
         if (!data?.response) {
-          console.error("Invalid response from Llama:", data);
+          console.error("Invalid response from OpenAI:", data);
           throw new Error("Invalid response from AI. Please try again.");
         }
 
