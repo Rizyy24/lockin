@@ -7,15 +7,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@supabase/auth-helpers-react";
 
 interface ReelQuestionProps {
-  question: {
-    id: string;
-    question: string;
-    options: string[];
-    correct_answer: string;
-  };
+  question: string;
+  options: string[];
+  selectedAnswer: string | null;
+  correctAnswer: string | null;
+  onAnswerSelected: (answer: string) => void;
+  isAnswered: boolean;
 }
 
-export const ReelQuestion = ({ question }: ReelQuestionProps) => {
+export const ReelQuestion = ({ 
+  question, 
+  options, 
+  selectedAnswer, 
+  correctAnswer, 
+  onAnswerSelected, 
+  isAnswered 
+}: ReelQuestionProps) => {
   const { toast } = useToast();
   const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -25,7 +32,7 @@ export const ReelQuestion = ({ question }: ReelQuestionProps) => {
     try {
       await navigator.share({
         title: "Check out this flashcard!",
-        text: question.question,
+        text: question,
         url: window.location.href,
       });
     } catch (error) {
@@ -59,7 +66,7 @@ export const ReelQuestion = ({ question }: ReelQuestionProps) => {
         .from('likes')
         .upsert({
           user_id: session.user.id,
-          question_id: question.id,
+          question_id: "placeholder", // This would need to be updated with actual question ID
         });
 
       if (error) throw error;
@@ -79,69 +86,60 @@ export const ReelQuestion = ({ question }: ReelQuestionProps) => {
   };
 
   return (
-    <div className="min-h-[100svh] w-full flex items-center justify-center px-4 py-16 snap-start">
-      <div className="glass-card p-6 w-full max-w-md mx-auto animate-fade-in">
-        {/* Flashcard Question */}
-        <div className="bg-[#1A1F2C] p-6 rounded-xl mb-6">
-          <p className="text-white text-xl">{question.question}</p>
-        </div>
-        
-        {/* Answer Section */}
-        <div className="space-y-4">
-          <Button
-            variant="outline"
-            className="w-full text-white"
-            onClick={() => setIsAnswerRevealed(!isAnswerRevealed)}
+    <div className="space-y-6">
+      {/* Question */}
+      <div className="bg-[#1A1F2C] p-5 rounded-lg">
+        <p className="text-white text-lg">{question}</p>
+      </div>
+      
+      {/* Options */}
+      <div className="space-y-3">
+        {options.map((option, index) => (
+          <button
+            key={index}
+            className={`w-full text-left p-4 rounded-lg transition ${
+              selectedAnswer === option
+                ? selectedAnswer === correctAnswer
+                  ? "bg-green-600/20 border border-green-500"
+                  : "bg-red-600/20 border border-red-500"
+                : "bg-white/5 hover:bg-white/10 border border-white/10"
+            }`}
+            onClick={() => !isAnswered && onAnswerSelected(option)}
+            disabled={isAnswered}
           >
-            {isAnswerRevealed ? (
-              <>
-                <EyeOff className="mr-2 h-4 w-4" />
-                Hide Answer
-              </>
-            ) : (
-              <>
-                <Eye className="mr-2 h-4 w-4" />
-                Reveal Answer
-              </>
-            )}
-          </Button>
-
-          {isAnswerRevealed && (
-            <div className="bg-[#1A1F2C]/80 p-4 rounded-lg animate-fade-in">
-              <p className="text-white">{question.correct_answer}</p>
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/10">
+            <p className="text-white">{option}</p>
+          </button>
+        ))}
+      </div>
+      
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center mt-6 pt-4 border-t border-white/10">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleLike}
+          className={`text-white/60 hover:text-white ${isLiked ? 'text-red-500 hover:text-red-600' : ''}`}
+        >
+          <Heart className="w-5 h-5" fill={isLiked ? "currentColor" : "none"} />
+        </Button>
+        
+        <div className="flex gap-2">
           <Button
             variant="ghost"
             size="icon"
-            onClick={handleLike}
-            className={`text-white/60 hover:text-white ${isLiked ? 'text-red-500 hover:text-red-600' : ''}`}
+            onClick={handleSave}
+            className="text-white/60 hover:text-white"
           >
-            <Heart className="w-5 h-5" fill={isLiked ? "currentColor" : "none"} />
+            <Save className="w-5 h-5" />
           </Button>
-          
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSave}
-              className="text-white/60 hover:text-white"
-            >
-              <Save className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleShare}
-              className="text-white/60 hover:text-white"
-            >
-              <Share2 className="w-5 h-5" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleShare}
+            className="text-white/60 hover:text-white"
+          >
+            <Share2 className="w-5 h-5" />
+          </Button>
         </div>
       </div>
     </div>
