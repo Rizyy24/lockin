@@ -5,7 +5,7 @@ import { ReelNavigation } from "@/components/reels/ReelNavigation";
 import { ReelQuestion } from "@/components/reels/ReelQuestion";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowDown, ArrowUp, Brain } from "lucide-react";
+import { Brain } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Question {
@@ -70,27 +70,6 @@ const Reels = () => {
     enabled: reels.length > 0 && !!reels[currentReelIndex]?.id,
   });
 
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(null);
-      setIsCorrect(null);
-    } else {
-      toast({
-        title: "Reel Complete!",
-        description: "You've answered all questions in this study reel.",
-      });
-    }
-  };
-
-  const handlePrevQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-      setSelectedAnswer(null);
-      setIsCorrect(null);
-    }
-  };
-
   const handleAnswerSelected = async (answer: string) => {
     setSelectedAnswer(answer);
     
@@ -125,10 +104,27 @@ const Reels = () => {
           : `The correct answer was: ${questions[currentQuestionIndex].correct_answer}`,
         variant: correct ? "default" : "destructive",
       });
+      
+      // Automatically go to next question after a short delay
+      setTimeout(() => {
+        if (currentQuestionIndex < questions.length - 1) {
+          setCurrentQuestionIndex(currentQuestionIndex + 1);
+          setSelectedAnswer(null);
+          setIsCorrect(null);
+        } else if (currentReelIndex < reels.length - 1) {
+          // Move to next reel if we're at the last question
+          handleScrollToNextReel();
+        } else {
+          toast({
+            title: "All Complete!",
+            description: "You've completed all available questions.",
+          });
+        }
+      }, 1500);
     }
   };
 
-  const scrollToNextReel = () => {
+  const handleScrollToNextReel = () => {
     if (currentReelIndex < reels.length - 1) {
       setIsScrolling(true);
       setCurrentReelIndex(currentReelIndex + 1);
@@ -136,33 +132,17 @@ const Reels = () => {
       setSelectedAnswer(null);
       setIsCorrect(null);
       
-      // Smooth scroll to next reel
-      if (reelContainerRef.current) {
-        reelContainerRef.current.scrollTo({
-          top: (currentReelIndex + 1) * window.innerHeight,
-          behavior: 'smooth'
-        });
-      }
-      
       setTimeout(() => setIsScrolling(false), 500);
     }
   };
 
-  const scrollToPrevReel = () => {
+  const handleScrollToPrevReel = () => {
     if (currentReelIndex > 0) {
       setIsScrolling(true);
       setCurrentReelIndex(currentReelIndex - 1);
       setCurrentQuestionIndex(0);
       setSelectedAnswer(null);
       setIsCorrect(null);
-      
-      // Smooth scroll to previous reel
-      if (reelContainerRef.current) {
-        reelContainerRef.current.scrollTo({
-          top: (currentReelIndex - 1) * window.innerHeight,
-          behavior: 'smooth'
-        });
-      }
       
       setTimeout(() => setIsScrolling(false), 500);
     }
@@ -171,20 +151,30 @@ const Reels = () => {
   // Add wheel event handler for vertical scrolling
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
-      if (isScrolling) return;
+      if (isScrolling || selectedAnswer) return;
       
       if (e.deltaY > 0) {
-        scrollToNextReel();
+        // Scrolling down - move to next question or reel
+        if (currentQuestionIndex < questions.length - 1) {
+          setCurrentQuestionIndex(currentQuestionIndex + 1);
+        } else {
+          handleScrollToNextReel();
+        }
       } else if (e.deltaY < 0) {
-        scrollToPrevReel();
+        // Scrolling up - move to previous question or reel
+        if (currentQuestionIndex > 0) {
+          setCurrentQuestionIndex(currentQuestionIndex - 1);
+        } else {
+          handleScrollToPrevReel();
+        }
       }
     };
     
     // Add debounce to prevent too many scroll events
-    let timeout: ReturnType<typeof setTimeout>; // Fix: Use ReturnType instead of a raw number type
+    let timeout: ReturnType<typeof setTimeout>;
     const debouncedHandleWheel = (e: WheelEvent) => {
       clearTimeout(timeout);
-      timeout = setTimeout(() => handleWheel(e), 100);
+      timeout = setTimeout(() => handleWheel(e), 200);
     };
     
     const container = reelContainerRef.current;
@@ -198,7 +188,7 @@ const Reels = () => {
       }
       clearTimeout(timeout);
     };
-  }, [currentReelIndex, isScrolling, reels.length]);
+  }, [currentReelIndex, currentQuestionIndex, isScrolling, questions.length, selectedAnswer]);
 
   // Add swipe gesture support for mobile
   useEffect(() => {
@@ -212,7 +202,7 @@ const Reels = () => {
     };
     
     const handleTouchEnd = (e: TouchEvent) => {
-      if (isScrolling) return;
+      if (isScrolling || selectedAnswer) return;
       
       const touchEndY = e.changedTouches[0].clientY;
       const deltaY = touchEndY - touchStartY;
@@ -220,11 +210,19 @@ const Reels = () => {
       // If the swipe distance is significant
       if (Math.abs(deltaY) > 50) {
         if (deltaY < 0) {
-          // Swipe up - go to next reel
-          scrollToNextReel();
+          // Swipe up - move to next question or reel
+          if (currentQuestionIndex < questions.length - 1) {
+            setCurrentQuestionIndex(currentQuestionIndex + 1);
+          } else {
+            handleScrollToNextReel();
+          }
         } else {
-          // Swipe down - go to previous reel
-          scrollToPrevReel();
+          // Swipe down - move to previous question or reel
+          if (currentQuestionIndex > 0) {
+            setCurrentQuestionIndex(currentQuestionIndex - 1);
+          } else {
+            handleScrollToPrevReel();
+          }
         }
       }
     };
@@ -236,7 +234,7 @@ const Reels = () => {
       container.removeEventListener('touchstart', handleTouchStart);
       container.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [currentReelIndex, isScrolling, reels.length]);
+  }, [currentReelIndex, currentQuestionIndex, isScrolling, questions.length, selectedAnswer]);
 
   useEffect(() => {
     setSelectedAnswer(null);
@@ -274,87 +272,39 @@ const Reels = () => {
   return (
     <div 
       ref={reelContainerRef}
-      className="min-h-screen bg-black text-foreground overflow-hidden snap-y snap-mandatory">
+      className="min-h-screen bg-black text-foreground overflow-hidden">
       <ReelNavigation />
       
-      {reels.map((reel, reelIndex) => {
-        // Skip rendering reels that are far from current view for performance
-        if (Math.abs(reelIndex - currentReelIndex) > 1) return null;
-        
-        const reelQuestions = questions;
-        const isCurrentReel = reelIndex === currentReelIndex;
-        
-        return (
-          <div 
-            key={reel.id} 
-            className={`h-screen flex items-center justify-center p-4 snap-start transition-opacity duration-300 ${isCurrentReel ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="glass-card p-6 md:p-8 w-full max-w-md relative">
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold mb-1">{reel.title}</h2>
-                <div className="flex justify-between items-center text-xs text-white/60">
-                  <span>Question {currentQuestionIndex + 1} of {reelQuestions.length}</span>
-                  <span>Reel {reelIndex + 1} of {reels.length}</span>
-                </div>
-              </div>
-              
-              {isCurrentReel && reelQuestions.length > 0 ? (
-                <ReelQuestion 
-                  question={reelQuestions[currentQuestionIndex].question}
-                  options={reelQuestions[currentQuestionIndex].options}
-                  selectedAnswer={selectedAnswer}
-                  correctAnswer={isCorrect !== null ? reelQuestions[currentQuestionIndex].correct_answer : null}
-                  onAnswerSelected={handleAnswerSelected}
-                  isAnswered={selectedAnswer !== null}
-                />
-              ) : (
-                <div className="py-8 text-center">
-                  <p className="text-white/60">No questions available for this reel.</p>
-                </div>
-              )}
-              
-              {/* Horizontal navigation controls for questions */}
-              {isCurrentReel && reelQuestions.length > 0 && (
-                <div className="flex justify-between mt-8">
-                  <div>
-                    <button 
-                      onClick={handlePrevQuestion} 
-                      disabled={currentQuestionIndex === 0 || !selectedAnswer}
-                      className="p-2 rounded-full bg-white/10 disabled:opacity-30 mr-2"
-                    >
-                      <ArrowUp className="w-5 h-5 rotate-90" />
-                    </button>
-                    <button 
-                      onClick={handleNextQuestion} 
-                      disabled={currentQuestionIndex === reelQuestions.length - 1 || !selectedAnswer}
-                      className="p-2 rounded-full bg-white/10 disabled:opacity-30"
-                    >
-                      <ArrowDown className="w-5 h-5 rotate-90" />
-                    </button>
-                  </div>
-                </div>
-              )}
-              
-              {/* Vertical navigation indicators */}
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-2">
-                <button 
-                  onClick={scrollToPrevReel}
-                  disabled={currentReelIndex === 0 || isScrolling}
-                  className="p-2 rounded-full bg-white/10 disabled:opacity-30"
-                >
-                  <ArrowUp className="w-5 h-5" />
-                </button>
-                <button 
-                  onClick={scrollToNextReel}
-                  disabled={currentReelIndex === reels.length - 1 || isScrolling}
-                  className="p-2 rounded-full bg-white/10 disabled:opacity-30"
-                >
-                  <ArrowDown className="w-5 h-5" />
-                </button>
-              </div>
+      <div className="h-screen flex items-center justify-center p-4">
+        <div className="glass-card p-6 md:p-8 w-full max-w-md">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-1">{reels[currentReelIndex]?.title}</h2>
+            <div className="flex justify-between items-center text-xs text-white/60">
+              <span>Question {currentQuestionIndex + 1} of {questions.length}</span>
+              <span>Reel {currentReelIndex + 1} of {reels.length}</span>
             </div>
           </div>
-        );
-      })}
+          
+          {questions.length > 0 ? (
+            <ReelQuestion 
+              question={questions[currentQuestionIndex].question}
+              options={questions[currentQuestionIndex].options}
+              selectedAnswer={selectedAnswer}
+              correctAnswer={isCorrect !== null ? questions[currentQuestionIndex].correct_answer : null}
+              onAnswerSelected={handleAnswerSelected}
+              isAnswered={selectedAnswer !== null}
+            />
+          ) : (
+            <div className="py-8 text-center">
+              <p className="text-white/60">No questions available for this reel.</p>
+            </div>
+          )}
+          
+          <div className="text-center mt-6 text-white/60 text-sm">
+            <p>Scroll to navigate between questions</p>
+          </div>
+        </div>
+      </div>
       
       <Navigation />
     </div>
