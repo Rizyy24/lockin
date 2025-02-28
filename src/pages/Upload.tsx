@@ -9,6 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileList } from "@/components/upload/FileList";
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set the PDF.js worker path
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
 
 const Upload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -55,20 +59,45 @@ const Upload = () => {
     }
   };
 
+  const extractTextFromPdf = async (file: File): Promise<string> => {
+    try {
+      // Convert the file to an ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Load the PDF document
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+      const pdf = await loadingTask.promise;
+      
+      let extractedText = '';
+      
+      // Extract text from each page
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const strings = content.items.map((item: any) => item.str);
+        extractedText += strings.join(' ') + '\n';
+      }
+      
+      return extractedText;
+    } catch (error) {
+      console.error("PDF extraction error:", error);
+      throw new Error("Failed to extract text from PDF");
+    }
+  };
+
   const extractTextFromFile = async (file: File): Promise<string> => {
     // For plain text files, just read the text content
     if (file.type === 'text/plain') {
       return await file.text();
     }
     
-    // For PDFs, we would need PDF.js to extract text properly
-    // This is a simplified approach for now
+    // For PDFs, use PDF.js to extract text properly
     if (file.type === 'application/pdf') {
       try {
-        return await file.text();
+        return await extractTextFromPdf(file);
       } catch (error) {
         console.error("PDF text extraction error:", error);
-        return "PDF text extraction not fully supported yet. Please upload plain text files for best results.";
+        throw error;
       }
     }
     
@@ -116,25 +145,55 @@ const Upload = () => {
         throw new Error('Authentication required');
       }
       
-      // 1. Upload file to Supabase storage
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${crypto.randomUUID()}.${fileExt}`;
+      // Extract text from document (before uploading)
+      setIsProcessing(true);
+      toast({
+        title: "Processing Document",
+        description: "Extracting text content..."
+      });
+      
+      // Extract text from document (PDF, txt, doc, etc.)
+      const fileContent = await extractTextFromFile(file);
+      
+      if (!fileContent || fileContent.trim() === '') {
+        throw new Error("Could not extract text content from the document");
+      }
+      
+      // Create a text file from the extracted content
+      const textBlob = new Blob([fileContent], { type: 'text/plain' });
+      const textFile = new File([textBlob], `${title}.txt`, { type: 'text/plain' });
+      
+      // 1. Upload original file to Supabase storage
+      const originalFileExt = file.name.split('.').pop();
+      const originalFilePath = `original_${crypto.randomUUID()}.${originalFileExt}`;
+      
+      const { error: originalUploadError } = await supabase.storage
+        .from('documents')
+        .upload(originalFilePath, file);
+      
+      if (originalUploadError) {
+        console.warn(`Original file upload failed: ${originalUploadError.message}`);
+        // Continue even if original upload fails
+      }
+      
+      // 2. Upload text file to Supabase storage
+      const textFilePath = `${crypto.randomUUID()}.txt`;
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('documents')
-        .upload(filePath, file);
+        .upload(textFilePath, textFile);
       
       if (uploadError) {
-        throw new Error(`File upload failed: ${uploadError.message}`);
+        throw new Error(`Text file upload failed: ${uploadError.message}`);
       }
       
-      // 2. Save file metadata to the uploads table
+      // 3. Save file metadata to the uploads table
       const { data: uploadRecord, error: uploadRecordError } = await supabase
         .from('uploads')
         .insert({
-          file_name: file.name,
-          file_path: filePath,
-          file_type: file.type,
+          file_name: `${title}.txt`,
+          file_path: textFilePath,
+          file_type: 'text/plain',
           user_id: user.id
         })
         .select()
@@ -145,23 +204,9 @@ const Upload = () => {
       }
       
       setIsUploading(false);
-      toast({
-        title: "Upload Complete",
-        description: "Document uploaded successfully. Extracting content..."
-      });
-      
-      // 3. Extract text content from the document
-      setIsProcessing(true);
-      
-      // Extract text from document
-      const fileContent = await extractTextFromFile(file);
-      
-      if (!fileContent || fileContent.trim() === '') {
-        throw new Error("Could not extract text content from the document");
-      }
       
       toast({
-        title: "Content Extracted",
+        title: "Text Extraction Complete",
         description: "Generating questions from content..."
       });
       
@@ -262,7 +307,7 @@ const Upload = () => {
                   <label htmlFor="file-upload" className="cursor-pointer">
                     <UploadIcon className="mx-auto h-8 w-8 text-white/40" />
                     <p className="text-white/60 mt-2">Click to select a file</p>
-                    <p className="text-xs text-white/40 mt-1">TXT files work best for content extraction</p>
+                    <p className="text-xs text-white/40 mt-1">PDF and TXT files are fully supported</p>
                   </label>
                 )}
               </div>
@@ -273,7 +318,7 @@ const Upload = () => {
               disabled={!file || isUploading || isProcessing} 
               className="w-full"
             >
-              {isUploading ? "Uploading..." : isProcessing ? "Processing Content..." : "Upload & Generate Questions"}
+              {isUploading ? "Converting & Uploading..." : isProcessing ? "Processing Content..." : "Upload & Generate Questions"}
             </Button>
           </form>
         </div>
