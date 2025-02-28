@@ -181,7 +181,7 @@ const Reels = () => {
     };
     
     // Add debounce to prevent too many scroll events
-    let timeout: number;
+    let timeout: ReturnType<typeof setTimeout>; // Fix: Use ReturnType instead of a raw number type
     const debouncedHandleWheel = (e: WheelEvent) => {
       clearTimeout(timeout);
       timeout = setTimeout(() => handleWheel(e), 100);
