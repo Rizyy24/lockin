@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Navigation } from "@/components/Navigation";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Upload as UploadIcon } from "lucide-react";
@@ -7,13 +7,123 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const Upload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch previous uploads for the current user
+  const { data: previousUploads = [], refetch: refetchUploads } = useQuery({
+    queryKey: ["user-uploads"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        return [];
+      }
+      
+      const { data, error } = await supabase
+        .from("uploads")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+        
+      if (error) {
+        console.error("Error fetching uploads:", error);
+        return [];
+      }
+      
+      return data || [];
+    },
+  });
+
+  const deleteAllPreviousUploads = async (userId: string) => {
+    try {
+      setIsDeleting(true);
+      
+      if (previousUploads.length === 0) {
+        return;
+      }
+      
+      // Delete all previous uploads
+      for (const upload of previousUploads) {
+        // 1. Delete the file from storage
+        const { error: storageError } = await supabase.storage
+          .from('documents')
+          .remove([upload.file_path]);
+          
+        if (storageError) {
+          console.error("Error deleting file from storage:", storageError);
+        }
+        
+        // 2. Delete the upload record
+        const { error: uploadError } = await supabase
+          .from('uploads')
+          .delete()
+          .eq('id', upload.id);
+          
+        if (uploadError) {
+          console.error("Error deleting upload record:", uploadError);
+        }
+        
+        // 3. Delete associated study reels
+        const { data: reels, error: reelsError } = await supabase
+          .from('study_reels')
+          .select('id')
+          .eq('source_upload_id', upload.id);
+          
+        if (reelsError) {
+          console.error("Error fetching associated reels:", reelsError);
+        } else if (reels && reels.length > 0) {
+          // Delete questions associated with these reels
+          for (const reel of reels) {
+            const { error: questionsError } = await supabase
+              .from('questions')
+              .delete()
+              .eq('reel_id', reel.id);
+              
+            if (questionsError) {
+              console.error("Error deleting questions:", questionsError);
+            }
+          }
+          
+          // Delete the reels
+          const { error: reelDeleteError } = await supabase
+            .from('study_reels')
+            .delete()
+            .eq('source_upload_id', upload.id);
+            
+          if (reelDeleteError) {
+            console.error("Error deleting reels:", reelDeleteError);
+          }
+        }
+      }
+      
+      // Refresh queries for uploads and reels
+      queryClient.invalidateQueries({ queryKey: ["user-uploads"] });
+      queryClient.invalidateQueries({ queryKey: ["study-reels"] });
+      
+      toast({
+        title: "Previous documents deleted",
+        description: "All your previous documents have been removed"
+      });
+    } catch (error) {
+      console.error("Error during deletion:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete previous documents",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -88,6 +198,9 @@ const Upload = () => {
         throw new Error('Authentication required');
       }
       
+      // Delete all previous uploads first
+      await deleteAllPreviousUploads(user.id);
+      
       // 1. Upload file to Supabase storage
       const fileExt = file.name.split('.').pop();
       const filePath = `${crypto.randomUUID()}.${fileExt}`;
@@ -157,6 +270,10 @@ const Upload = () => {
         description: "Document processed! Questions are now available in Study Reels."
       });
       
+      // Refresh queries
+      queryClient.invalidateQueries({ queryKey: ["user-uploads"] });
+      queryClient.invalidateQueries({ queryKey: ["study-reels"] });
+      
       // Reset form
       setFile(null);
       setTitle("");
@@ -187,6 +304,17 @@ const Upload = () => {
           <p className="text-sm text-white/60 mb-6">
             Share your PDF and text files to generate study questions from your content
           </p>
+          
+          {previousUploads.length > 0 && (
+            <div className="mb-6 p-4 bg-white/5 rounded-lg">
+              <p className="text-sm text-yellow-300 mb-2">
+                Note: Uploading a new document will replace your previous uploads.
+              </p>
+              <p className="text-xs text-white/60">
+                You currently have {previousUploads.length} document{previousUploads.length !== 1 ? 's' : ''} uploaded.
+              </p>
+            </div>
+          )}
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -238,10 +366,13 @@ const Upload = () => {
             
             <Button 
               type="submit" 
-              disabled={!file || isUploading || isProcessing} 
+              disabled={!file || isUploading || isProcessing || isDeleting} 
               className="w-full"
             >
-              {isUploading ? "Uploading..." : isProcessing ? "Processing Content..." : "Upload & Generate Questions"}
+              {isDeleting ? "Deleting Previous Documents..." : 
+               isUploading ? "Uploading..." : 
+               isProcessing ? "Processing Content..." : 
+               "Upload & Generate Questions"}
             </Button>
           </form>
         </div>
