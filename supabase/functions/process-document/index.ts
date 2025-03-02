@@ -22,8 +22,11 @@ serve(async (req) => {
       throw new Error('Content is required');
     }
 
+    console.log('Processing document with title:', title);
+    console.log('Content length:', content.length);
+
     // Truncate content if it's too long (OpenAI has a token limit)
-    const truncatedContent = content.slice(0, 30000);
+    const truncatedContent = content.length > 30000 ? content.slice(0, 30000) : content;
 
     if (!openAiApiKey) {
       console.error('OPENAI_API_KEY not found in environment variables');
@@ -31,7 +34,6 @@ serve(async (req) => {
     }
 
     console.log('Making request to OpenAI API...');
-    console.log('Content excerpt:', truncatedContent.slice(0, 200) + '...');
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -43,7 +45,17 @@ serve(async (req) => {
         model: "gpt-4o-mini",
         messages: [{
           role: "system",
-          content: `You are an AI that generates study questions based on study material. Given the text below, create 5 multiple-choice questions that test understanding of key concepts from the content. Focus on the actual knowledge and information in the content, not metadata like page numbers or document format.
+          content: `You are an AI that generates highly relevant study questions based on provided text content. 
+          
+Given the text below, create 5-10 challenging multiple-choice questions that specifically test understanding of key concepts, facts, and information directly from the content.
+
+IMPORTANT GUIDELINES:
+1. Questions MUST be based ONLY on information explicitly present in the text - do not make up information
+2. Each question should focus on important concepts, not trivial details
+3. Create plausible but incorrect answer options
+4. Ensure questions are factually accurate according to the provided text
+5. Format options with letter prefixes (A, B, C, D)
+6. Use clear, direct language in both questions and answers
 
 Format your response as a valid JSON array where each question object has these exact fields:
 {
@@ -55,26 +67,26 @@ Format your response as a valid JSON array where each question object has these 
 
 Study Material to analyze: ${truncatedContent}`
         }],
-        temperature: 0.7,
-        max_tokens: 1024,
+        temperature: 0.5,
+        max_tokens: 2000,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error response:', errorText);
-      throw new Error(`Failed to get response from OpenAI API: ${errorText}`);
+      throw new Error(`Failed to get response from OpenAI API: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI API response:', JSON.stringify(data));
+    console.log('OpenAI API response received');
 
     if (!data.choices?.[0]?.message?.content) {
       throw new Error('Invalid response format from OpenAI API');
     }
 
     const responseText = data.choices[0].message.content;
-    console.log('Raw response text:', responseText);
+    console.log('Raw response text length:', responseText.length);
 
     // Extract JSON array from response with improved error handling
     try {
@@ -83,7 +95,7 @@ Study Material to analyze: ${truncatedContent}`
       const jsonEnd = responseText.lastIndexOf(']') + 1;
       
       if (jsonStart === -1 || jsonEnd === 0) {
-        console.error('No JSON array found in response text:', responseText);
+        console.error('No JSON array found in response text');
         throw new Error('No JSON array found in response');
       }
 
@@ -105,7 +117,7 @@ Study Material to analyze: ${truncatedContent}`
           String.fromCharCode(parseInt(p1, 16))
         );
 
-      console.log('Cleaned JSON string:', jsonStr);
+      console.log('Processing JSON...');
       
       const questions = JSON.parse(jsonStr);
 
@@ -114,6 +126,8 @@ Study Material to analyze: ${truncatedContent}`
         throw new Error('Response is not an array');
       }
 
+      console.log('Successfully parsed', questions.length, 'questions');
+      
       questions.forEach((q, index) => {
         if (!q.question || !Array.isArray(q.options) || !q.correct_answer || !q.options.includes(q.correct_answer)) {
           console.error('Invalid question format:', q);
@@ -127,11 +141,14 @@ Study Material to analyze: ${truncatedContent}`
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
 
+      console.log('Getting authenticated user...');
       const { data: { user } } = await supabaseClient.auth.getUser(req.headers.get('Authorization')?.split(' ')[1] ?? '');
+      
       if (!user) {
         throw new Error('Not authenticated');
       }
 
+      console.log('Creating study reel...');
       const { data: reel, error: reelError } = await supabaseClient
         .from('study_reels')
         .insert({
@@ -145,9 +162,11 @@ Study Material to analyze: ${truncatedContent}`
         .single();
 
       if (reelError) {
+        console.error('Error creating study reel:', reelError);
         throw reelError;
       }
 
+      console.log('Inserting', questions.length, 'questions...');
       // Insert questions
       const { error: questionsError } = await supabaseClient
         .from('questions')
@@ -162,10 +181,17 @@ Study Material to analyze: ${truncatedContent}`
         );
 
       if (questionsError) {
+        console.error('Error inserting questions:', questionsError);
         throw questionsError;
       }
 
-      return new Response(JSON.stringify({ success: true }), {
+      console.log('Successfully created study reel with questions');
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        reelId: reel.id,
+        questionCount: questions.length 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     } catch (error) {

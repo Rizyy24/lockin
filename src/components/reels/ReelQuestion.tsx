@@ -24,7 +24,6 @@ export const ReelQuestion = ({
   isAnswered 
 }: ReelQuestionProps) => {
   const { toast } = useToast();
-  const [isAnswerRevealed, setIsAnswerRevealed] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const session = useSession();
 
@@ -85,11 +84,17 @@ export const ReelQuestion = ({
     }
   };
 
+  // Format question text to handle potential markdown or formatting
+  const formattedQuestion = question.replace(/\n/g, '<br>');
+
   return (
     <div className="space-y-6">
       {/* Question */}
       <div className="bg-[#1A1F2C] p-5 rounded-lg">
-        <p className="text-white text-lg">{question}</p>
+        <p 
+          className="text-white text-lg" 
+          dangerouslySetInnerHTML={{ __html: formattedQuestion }}
+        />
       </div>
       
       {/* Options */}
