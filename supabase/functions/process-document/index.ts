@@ -23,7 +23,7 @@ serve(async (req) => {
     }
 
     console.log('Processing document with title:', title);
-    console.log('Content length:', content.length);
+    console.log('Content sample (first 200 chars):', content.substring(0, 200) + '...');
 
     // Truncate content if it's too long (OpenAI has a token limit)
     const truncatedContent = content.length > 30000 ? content.slice(0, 30000) : content;
@@ -45,29 +45,27 @@ serve(async (req) => {
         model: "gpt-4o-mini",
         messages: [{
           role: "system",
-          content: `You are an AI that generates highly relevant study questions based on provided text content. 
+          content: `You are a highly accurate AI that generates relevant multiple-choice questions DIRECTLY from the provided content.
           
-Given the text below, create 5-10 challenging multiple-choice questions that specifically test understanding of key concepts, facts, and information directly from the content.
+IMPORTANT INSTRUCTIONS:
+1. ONLY create questions based on EXPLICIT information from the text provided - do not rely on your general knowledge
+2. If the content appears to be a math worksheet or exam, create questions about the mathematical concepts present
+3. Focus on the main topics, concepts, facts, and information in the text
+4. Each question must have 4 options (A, B, C, D) with exactly one correct answer
+5. Make sure the questions test understanding of the actual content, not peripheral details
+6. Format each option to start with the letter (A, B, C, D) followed by the option text
 
-IMPORTANT GUIDELINES:
-1. Questions MUST be based ONLY on information explicitly present in the text - do not make up information
-2. Each question should focus on important concepts, not trivial details
-3. Create plausible but incorrect answer options
-4. Ensure questions are factually accurate according to the provided text
-5. Format options with letter prefixes (A, B, C, D)
-6. Use clear, direct language in both questions and answers
-
-Format your response as a valid JSON array where each question object has these exact fields:
+FORMAT YOUR RESPONSE AS A VALID JSON ARRAY where each question has:
 {
-  "question": "the question text",
+  "question": "the complete question text",
   "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
-  "correct_answer": "the correct option that matches exactly one from the options array",
+  "correct_answer": "the correct option that EXACTLY matches one option from the options array",
   "type": "multiple_choice"
 }
 
-Study Material to analyze: ${truncatedContent}`
+Content to analyze: ${truncatedContent}`
         }],
-        temperature: 0.5,
+        temperature: 0.3, // Lower temperature for more deterministic and accurate responses
         max_tokens: 2000,
       }),
     });
@@ -87,6 +85,7 @@ Study Material to analyze: ${truncatedContent}`
 
     const responseText = data.choices[0].message.content;
     console.log('Raw response text length:', responseText.length);
+    console.log('Sample of response:', responseText.substring(0, 200) + '...');
 
     // Extract JSON array from response with improved error handling
     try {
@@ -100,6 +99,7 @@ Study Material to analyze: ${truncatedContent}`
       }
 
       let jsonStr = responseText.slice(jsonStart, jsonEnd);
+      console.log('Extracted JSON string sample:', jsonStr.substring(0, 100) + '...');
       
       // Clean up common formatting issues
       jsonStr = jsonStr
@@ -128,11 +128,43 @@ Study Material to analyze: ${truncatedContent}`
 
       console.log('Successfully parsed', questions.length, 'questions');
       
-      questions.forEach((q, index) => {
-        if (!q.question || !Array.isArray(q.options) || !q.correct_answer || !q.options.includes(q.correct_answer)) {
+      // Validate and fix each question
+      const validatedQuestions = questions.map((q, index) => {
+        // Log each question for debugging
+        console.log(`Question ${index+1}: ${q.question?.substring(0, 50)}...`);
+        console.log(`Options: ${JSON.stringify(q.options)}`);
+        console.log(`Correct answer: ${q.correct_answer}`);
+        
+        if (!q.question || !Array.isArray(q.options) || !q.correct_answer) {
           console.error('Invalid question format:', q);
           throw new Error(`Invalid question format at index ${index}`);
         }
+        
+        // Ensure correct_answer matches one of the options exactly
+        if (!q.options.includes(q.correct_answer)) {
+          console.error(`Correct answer doesn't match any option for question ${index+1}`);
+          // Try to find the closest match
+          for (const option of q.options) {
+            if (option.includes(q.correct_answer.replace(/^[A-D]\)\s*/, '')) || 
+                q.correct_answer.includes(option.replace(/^[A-D]\)\s*/, ''))) {
+              console.log(`Found closest match: ${option}`);
+              q.correct_answer = option;
+              break;
+            }
+          }
+          // If still no match, default to first option
+          if (!q.options.includes(q.correct_answer)) {
+            console.warn(`Setting default correct answer to first option for question ${index+1}`);
+            q.correct_answer = q.options[0];
+          }
+        }
+        
+        return {
+          question: q.question,
+          options: q.options,
+          correct_answer: q.correct_answer,
+          type: "multiple_choice"
+        };
       });
 
       // Create study reel
@@ -166,12 +198,12 @@ Study Material to analyze: ${truncatedContent}`
         throw reelError;
       }
 
-      console.log('Inserting', questions.length, 'questions...');
+      console.log('Inserting', validatedQuestions.length, 'questions...');
       // Insert questions
       const { error: questionsError } = await supabaseClient
         .from('questions')
         .insert(
-          questions.map(q => ({
+          validatedQuestions.map(q => ({
             reel_id: reel.id,
             question: q.question,
             options: q.options,
@@ -190,7 +222,7 @@ Study Material to analyze: ${truncatedContent}`
       return new Response(JSON.stringify({ 
         success: true, 
         reelId: reel.id,
-        questionCount: questions.length 
+        questionCount: validatedQuestions.length 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

@@ -107,7 +107,9 @@ export const ReelQuestion = ({
                 ? selectedAnswer === correctAnswer
                   ? "bg-green-600/20 border border-green-500"
                   : "bg-red-600/20 border border-red-500"
-                : "bg-white/5 hover:bg-white/10 border border-white/10"
+                : correctAnswer === option && isAnswered
+                  ? "bg-green-600/20 border border-green-500"
+                  : "bg-white/5 hover:bg-white/10 border border-white/10"
             }`}
             onClick={() => !isAnswered && onAnswerSelected(option)}
             disabled={isAnswered}
