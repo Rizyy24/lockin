@@ -9,16 +9,13 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileList } from "@/components/upload/FileList";
-import * as pdfjsLib from 'pdfjs-dist';
-
-// Set the PDF.js worker path
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
 
 const Upload = () => {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [convertApiKey, setConvertApiKey] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -47,6 +44,25 @@ const Upload = () => {
     },
   });
 
+  // Fetch the ConvertAPI key from Supabase
+  useQuery({
+    queryKey: ["convert-api-key"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('get-convert-api-key');
+      
+      if (error) {
+        console.error("Error fetching ConvertAPI key:", error);
+        return null;
+      }
+      
+      if (data?.key) {
+        setConvertApiKey(data.key);
+      }
+      
+      return data;
+    },
+  });
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setFile(e.target.files[0]);
@@ -59,29 +75,47 @@ const Upload = () => {
     }
   };
 
-  const extractTextFromPdf = async (file: File): Promise<string> => {
+  const convertPdfToText = async (file: File): Promise<string> => {
     try {
-      // Convert the file to an ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer();
+      if (!convertApiKey) {
+        throw new Error("ConvertAPI key not available. Please check your configuration.");
+      }
+
+      // Create form data for the ConvertAPI
+      const formData = new FormData();
+      formData.append('File', file);
       
-      // Load the PDF document
-      const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-      const pdf = await loadingTask.promise;
+      // Call the ConvertAPI service
+      const response = await fetch(`https://v2.convertapi.com/convert/pdf/to/txt?Secret=${convertApiKey}`, {
+        method: 'POST',
+        body: formData,
+      });
       
-      let extractedText = '';
-      
-      // Extract text from each page
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const strings = content.items.map((item: any) => item.str);
-        extractedText += strings.join(' ') + '\n';
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("ConvertAPI error:", errorData);
+        throw new Error(`ConvertAPI returned error: ${response.status}`);
       }
       
-      return extractedText;
+      const result = await response.json();
+      
+      // Get the converted file URL from the response
+      if (result.Files && result.Files.length > 0) {
+        const convertedFileUrl = result.Files[0].Url;
+        
+        // Fetch the text content
+        const textResponse = await fetch(convertedFileUrl);
+        if (!textResponse.ok) {
+          throw new Error(`Failed to download converted text: ${textResponse.status}`);
+        }
+        
+        return await textResponse.text();
+      } else {
+        throw new Error("No converted files returned from ConvertAPI");
+      }
     } catch (error) {
-      console.error("PDF extraction error:", error);
-      throw new Error("Failed to extract text from PDF");
+      console.error("PDF conversion error:", error);
+      throw new Error(`Failed to convert PDF to text: ${error.message}`);
     }
   };
 
@@ -91,10 +125,10 @@ const Upload = () => {
       return await file.text();
     }
     
-    // For PDFs, use PDF.js to extract text properly
+    // For PDFs, use ConvertAPI to extract text
     if (file.type === 'application/pdf') {
       try {
-        return await extractTextFromPdf(file);
+        return await convertPdfToText(file);
       } catch (error) {
         console.error("PDF text extraction error:", error);
         throw error;
@@ -104,6 +138,8 @@ const Upload = () => {
     // For Word documents and other formats
     if (file.type.includes('document') || file.type.includes('text')) {
       try {
+        // ConvertAPI also supports other document formats but we'll need to
+        // modify the conversion endpoint and parameters accordingly
         return await file.text();
       } catch (error) {
         console.error("Document text extraction error:", error);
@@ -135,6 +171,16 @@ const Upload = () => {
       return;
     }
 
+    // Check if the ConvertAPI key is available for PDF conversion
+    if (file.type === 'application/pdf' && !convertApiKey) {
+      toast({
+        title: "Error",
+        description: "ConvertAPI key not configured. PDF conversion unavailable.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsUploading(true);
 
@@ -149,7 +195,7 @@ const Upload = () => {
       setIsProcessing(true);
       toast({
         title: "Processing Document",
-        description: "Extracting text content..."
+        description: "Converting and extracting text content..."
       });
       
       // Extract text from document (PDF, txt, doc, etc.)
@@ -315,7 +361,7 @@ const Upload = () => {
             
             <Button 
               type="submit" 
-              disabled={!file || isUploading || isProcessing} 
+              disabled={!file || isUploading || isProcessing || (file?.type === 'application/pdf' && !convertApiKey)} 
               className="w-full"
             >
               {isUploading ? "Converting & Uploading..." : isProcessing ? "Processing Content..." : "Upload & Generate Questions"}
