@@ -81,12 +81,14 @@ const Upload = () => {
         throw new Error("ConvertAPI key not available. Please check your configuration.");
       }
 
+      console.log("Converting PDF to text using ConvertAPI");
+      
       // Create form data for the ConvertAPI
       const formData = new FormData();
       formData.append('File', file);
       
-      // Call the ConvertAPI service
-      const response = await fetch(`https://v2.convertapi.com/convert/pdf/to/txt?Secret=${convertApiKey}`, {
+      // Use a better PDF to text conversion with OCR enabled
+      const response = await fetch(`https://v2.convertapi.com/convert/pdf/to/txt?Secret=${convertApiKey}&StoreFile=true&OCR=true`, {
         method: 'POST',
         body: formData,
       });
@@ -98,6 +100,7 @@ const Upload = () => {
       }
       
       const result = await response.json();
+      console.log("ConvertAPI response:", result);
       
       // Get the converted file URL from the response
       if (result.Files && result.Files.length > 0) {
@@ -109,7 +112,11 @@ const Upload = () => {
           throw new Error(`Failed to download converted text: ${textResponse.status}`);
         }
         
-        return await textResponse.text();
+        const extractedText = await textResponse.text();
+        console.log("Extracted text length:", extractedText.length);
+        console.log("Text sample:", extractedText.substring(0, 200));
+        
+        return extractedText;
       } else {
         throw new Error("No converted files returned from ConvertAPI");
       }

@@ -87,6 +87,16 @@ export const ReelQuestion = ({
   // Format question text to handle potential markdown or formatting
   const formattedQuestion = question.replace(/\n/g, '<br>');
 
+  // Extract letter prefixes from options (A, B, C, D) if present
+  const getOptionLetter = (option: string): string => {
+    const match = option.match(/^([A-D])[).]\s*/);
+    return match ? match[1] : '';
+  };
+
+  const getOptionText = (option: string): string => {
+    return option.replace(/^[A-D][).]?\s*/, '');
+  };
+
   return (
     <div className="space-y-6">
       {/* Question */}
@@ -99,24 +109,32 @@ export const ReelQuestion = ({
       
       {/* Options */}
       <div className="space-y-3">
-        {options.map((option, index) => (
-          <button
-            key={index}
-            className={`w-full text-left p-4 rounded-lg transition ${
-              selectedAnswer === option
-                ? selectedAnswer === correctAnswer
-                  ? "bg-green-600/20 border border-green-500"
-                  : "bg-red-600/20 border border-red-500"
-                : correctAnswer === option && isAnswered
-                  ? "bg-green-600/20 border border-green-500"
-                  : "bg-white/5 hover:bg-white/10 border border-white/10"
-            }`}
-            onClick={() => !isAnswered && onAnswerSelected(option)}
-            disabled={isAnswered}
-          >
-            <p className="text-white">{option}</p>
-          </button>
-        ))}
+        {options.map((option, index) => {
+          const optionLetter = getOptionLetter(option) || String.fromCharCode(65 + index); // A, B, C, D if not present
+          const optionText = getOptionText(option);
+          
+          return (
+            <button
+              key={index}
+              className={`w-full text-left p-4 rounded-lg transition ${
+                selectedAnswer === option
+                  ? selectedAnswer === correctAnswer
+                    ? "bg-green-600/20 border border-green-500"
+                    : "bg-red-600/20 border border-red-500"
+                  : correctAnswer === option && isAnswered
+                    ? "bg-green-600/20 border border-green-500"
+                    : "bg-white/5 hover:bg-white/10 border border-white/10"
+              }`}
+              onClick={() => !isAnswered && onAnswerSelected(option)}
+              disabled={isAnswered}
+            >
+              <div className="flex">
+                <span className="inline-block w-6 flex-shrink-0 font-bold">{optionLetter}.</span>
+                <span className="text-white">{optionText}</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
       
       {/* Action Buttons */}
